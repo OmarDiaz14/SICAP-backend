@@ -1,0 +1,29 @@
+# Entorno virtual de Python
+/venv/
+/env/
+
+# Archivos de caché de Python
+__pycache__/
+*.pyc
+
+# Base de datos local
+*.sqlite3
+
+# Archivos de media subidos por los usuarios
+/media/
+
+# Archivos de entorno con variables sensibles
+.env
+
+# Archivos de registro (logs)
+*.log
+
+# Configuraciones del editor (Visual Studio Code)
+.vscode/
+.history/
+
+# Archivos del sistema operativo
+# macOS
+.DS_Store
+# Windows
+Thumbs.db
