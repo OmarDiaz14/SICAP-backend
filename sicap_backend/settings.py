@@ -1,3 +1,8 @@
+import os
+import dj_database_url
+from dotenv import load_dotenv
+load_dotenv()
+
 """
 Django settings for sicap_backend project.
 
@@ -23,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-cs+i4mr*tq$z5c%6ht#(ku)rp^b(-c4d#$c#4g!^2+1%25v)s0'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = []
 
@@ -85,12 +90,20 @@ WSGI_APPLICATION = 'sicap_backend.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default':dj_database_url.config(
+        default=os.environ.get('DATABASE_URL') ,
+        conn_max_age=600
+    )
 }
+#para la base de datos de prueba que este en mi computadora local 
+if 'REDER' not in os.environ:
+    DATABASES = ['default'] ['TEST'] = {
+        'NAME': 'sicap_db_test' #nombre de la base de datos de prueba
+    }
 
+if os.environ.get('REDER', '') == 'true':
+    DATABASES['default']['OPTIONS'] = {'sslmode': 'require'
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
