@@ -1,6 +1,7 @@
 import os
 import dj_database_url
 from dotenv import load_dotenv
+
 load_dotenv()
 
 """
@@ -16,7 +17,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-
+#Kirbyestuvo aqui x2.
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -64,6 +65,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
 ]
 
 ROOT_URLCONF = 'sicap_backend.urls'
@@ -85,24 +88,31 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'sicap_backend.wsgi.application'
 
-
+#Kirby estuvo aqui. xdxdxdxdxdxdxdx
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default':dj_database_url.config(
-        default=os.environ.get('DATABASE_URL') ,
+    'default': dj_database_url.config(
+        # Busca la variable DATABASE_URL y la configura
+        default=os.environ.get('DATABASE_URL'),
+        # Mantiene la conexión abierta para mejorar el rendimiento
         conn_max_age=600
     )
 }
-#para la base de datos de prueba que este en mi computadora local 
-if 'REDER' not in os.environ:
-    DATABASES = ['default'] ['TEST'] = {
-        'NAME': 'sicap_db_test' #nombre de la base de datos de prueba
+
+# ---- Configuración de la base de datos de prueba ----
+# Si NO estamos en Render, configura la base de datos de prueba local
+if 'RENDER' not in os.environ:
+    DATABASES['default']['TEST'] = {
+        'NAME': 'test_mi_proyecto_db' # El nombre de tu base de datos de prueba local
     }
 
-if os.environ.get('REDER', '') == 'true':
-    DATABASES['default']['OPTIONS'] = {'sslmode': 'require'
+# ---- Configuraciones de seguridad para la DB de Render ----
+# Render necesita conexiones SSL, pero la base de datos local no.
+if os.environ.get('RENDER', '') == 'true':
+    DATABASES['default']['OPTIONS'] = {
+        'sslmode': 'require'
     }
 
 # Password validation
