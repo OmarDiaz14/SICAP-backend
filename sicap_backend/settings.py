@@ -1,3 +1,9 @@
+import os
+import dj_database_url
+from dotenv import load_dotenv
+
+load_dotenv()
+
 """
 Django settings for sicap_backend project.
 
@@ -11,7 +17,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-
+#Kirbyestuvo aqui x2.
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -23,7 +29,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-cs+i4mr*tq$z5c%6ht#(ku)rp^b(-c4d#$c#4g!^2+1%25v)s0'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = []
 
@@ -41,6 +47,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'asignaciones',
+    'cargos',
     'cobrador',
     'colonia',
     'cuentahabientes',
@@ -59,6 +66,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
 ]
 
 ROOT_URLCONF = 'sicap_backend.urls'
@@ -80,17 +89,32 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'sicap_backend.wsgi.application'
 
-
+#Kirby estuvo aqui. xdxdxdxdxdxdxdx
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        # Busca la variable DATABASE_URL y la configura
+        default=os.environ.get('DATABASE_URL'),
+        # Mantiene la conexión abierta para mejorar el rendimiento
+        conn_max_age=600
+    )
 }
 
+# ---- Configuración de la base de datos de prueba ----
+# Si NO estamos en Render, configura la base de datos de prueba local
+if 'RENDER' not in os.environ:
+    DATABASES['default']['TEST'] = {
+        'NAME': 'test_mi_proyecto_db' # El nombre de tu base de datos de prueba local
+    }
+
+# ---- Configuraciones de seguridad para la DB de Render ----
+# Render necesita conexiones SSL, pero la base de datos local no.
+if os.environ.get('RENDER', '') == 'true':
+    DATABASES['default']['OPTIONS'] = {
+        'sslmode': 'require'
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -132,3 +156,24 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'cobrador.auth.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+        "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 50,
+    # (opcional) límites básicos de rate limiting
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "50/min",
+        "user": "200/min",
+    },
+}
+
+JWT_SETTINGS = {
+    "ACCESS_TOKEN_LIFETIME": 60 * 60 * 24,  # 1 day
+    "ALGORITHM": "HS256",
+}
