@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.contrib.auth.hashers import make_password, check_password
 # Create your models here.
 class Cobrador(models.Model):
     id_cobrador = models.AutoField(primary_key=True)
@@ -8,4 +8,36 @@ class Cobrador(models.Model):
     email = models.EmailField(max_length=256, unique=True)
     usuario = models.CharField(max_length=25, unique=True)
     password = models.CharField(max_length=256)
+
+    @property
+    def is_authenticated(self) -> bool:
+        return True  # DRF/permissions.IsAuthenticated lo usa
+
+    @property
+    def is_anonymous(self) -> bool:
+        return False
     
+    def set_password(self, raw_password: str):
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password: str) -> bool:
+        return check_password(raw_password, self.password)
+
+    def save(self, *args, **kwargs):
+        # normaliza usuario
+        if self.usuario:
+            self.usuario = self.usuario.strip().lower()
+
+        # si la password no parece hash de Django, hashearla
+        if self.password and not self.password.startswith('pbkdf2_'):
+            self.password = make_password(self.password)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.nombre} {self.apellidos} ({self.usuario})"
+
+    class Meta:
+        ordering = ["id_cobrador"]
+        verbose_name = "Cobrador"
+        verbose_name_plural = "Cobradores"
