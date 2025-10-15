@@ -2,12 +2,25 @@ from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
 # Create your models here.
 class Cobrador(models.Model):
+    ROLE_ADMIN = "admin"
+    ROLE_SUPERVISOR = "supervisor"
+    ROLE_COBRADOR = "cobrador"
+    ROLE_CHOICES = [
+        (ROLE_ADMIN, "Admin"),
+        (ROLE_SUPERVISOR, "Supervisor"),
+        (ROLE_COBRADOR, "Cobrador"),
+    ]
+
     id_cobrador = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=25)
     apellidos = models.CharField(max_length=50)
     email = models.EmailField(max_length=256, unique=True)
     usuario = models.CharField(max_length=25, unique=True)
     password = models.CharField(max_length=256)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_COBRADOR)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
 
     @property
     def is_authenticated(self) -> bool:
