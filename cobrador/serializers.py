@@ -5,7 +5,7 @@ from .models import Cobrador
 class CobradorPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cobrador
-        fields = ("id_cobrador", "nombre", "apellidos", "usuario", "email")
+        fields = ("id_cobrador", "nombre", "apellidos", "usuario", "email","role")
         read_only_fields = fields
 
 
@@ -27,6 +27,7 @@ class SignupSerializer(serializers.ModelSerializer):
 
     class Meta: 
         model = Cobrador
+        #el rol viene del request del admin, no se deja que se ponga libremente 
         fields = ['nombre','apellidos','email','usuario','password','password2']
 
     def validate(self, attrs):
@@ -45,3 +46,18 @@ class SignupSerializer(serializers.ModelSerializer):
         cobrador.set_password(password)
         cobrador.save()
         return cobrador
+    
+class AdminCreateUserSerializer(SignupSerializer):
+
+    #permite que un ADMIN cree usuarios con el rol explicito
+    role = serializers.ChoiceField(choices=Cobrador.ROLE_CHOICES)
+
+    class Meta(SignupSerializer.Meta):
+        fields = ['nombre','apellidos','email','usuario','password','password2','role']
+
+    def create (self, validated_data):
+        role = validated_data.pop("role")   
+        user = super().create(validated_data)
+        user.role = role
+        user.save()
+        return user
