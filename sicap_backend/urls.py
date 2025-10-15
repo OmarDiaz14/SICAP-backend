@@ -24,4 +24,5 @@ urlpatterns = [
     path('', include('cobrador.urls')),
     path('', include('colonia.urls')),
     path('', include('sector.urls')),
+    path('', include('descuento.urls')),
 ]
