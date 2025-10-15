@@ -1,0 +1,1 @@
+web: gunicorn sicap_backend.wsgi

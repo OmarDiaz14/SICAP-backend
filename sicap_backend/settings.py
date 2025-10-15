@@ -26,13 +26,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-cs+i4mr*tq$z5c%6ht#(ku)rp^b(-c4d#$c#4g!^2+1%25v)s0'
+#SECRET_KEY = 'django-insecure-cs+i4mr*tq$z5c%6ht#(ku)rp^b(-c4d#$c#4g!^2+1%25v)s0'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+#DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+#ALLOWED_HOSTS = []
 
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-insecure-key")  # Render seteará la real
+DEBUG = os.environ.get("DEBUG", "0") == "1"
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", ".onrender.com,localhost,127.0.0.1").split(",")
 
 # Application definition
 
@@ -66,6 +69,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
 ]

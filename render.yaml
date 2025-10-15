@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: sicap-backend
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py migrate --noinput
+      python manage.py collectstatic --noinput
+    startCommand: gunicorn sicap_backend.wsgi
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "0"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+    healthCheckPath: /admin/login/
+    autoDeploy: true
+databases:
+  - name: sicap-db
