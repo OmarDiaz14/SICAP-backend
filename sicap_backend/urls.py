@@ -26,4 +26,5 @@ urlpatterns = [
     path('', include('sector.urls')),
     path('', include('descuento.urls')),
     path('', include('asignaciones.urls')),
+    path('', include('servicio.urls')),
 ]

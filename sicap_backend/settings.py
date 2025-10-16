@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'descuento',
     'pagos',
     'sector',
+    'servicio',
 
     
 ]
