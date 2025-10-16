@@ -11,4 +11,12 @@ class Asignacion(models.Model):
 
     def __str__(self):
         return f"Asignacion {self.id_asignacion} - Cobrador: {self.cobrador.nombre} {self.cobrador.apellidos} - Sector: {self.sector.nombre_sector}"
+    
+    class Meta:
+        ordering = ['-fecha_asignacion', '-id_asignacion']
+        constraints = [  
+            models.UniqueConstraint(
+                fields=['cobrador', 'sector','fecha_asignacion'],
+                  name='uniq_cobrador_sector_fecha')
+        ]
 

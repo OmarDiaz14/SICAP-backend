@@ -6,7 +6,7 @@ class Sector(models.Model):
     nombre_sector = models.CharField(max_length=50)
     descripcion = models.TextField()
 
-    def srt (self):
+    def __str__(self):
         return self.nombre_sector
-    
+
     
