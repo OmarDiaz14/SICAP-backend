@@ -5,7 +5,7 @@ from cuentahabientes.models import Cuentahabiente
 
 class Pago(models.Model):
     id_pago = models.AutoField(primary_key=True)
-    descuento = models.ForeignKey(Descuento, on_delete=models.PROTECT)
+    descuento = models.ForeignKey(Descuento, on_delete=models.PROTECT, null=True, blank=True)
     cobrador = models.ForeignKey(Cobrador, on_delete=models.PROTECT)
     cuentahabiente = models.ForeignKey(Cuentahabiente, on_delete=models.PROTECT)
     fecha_pago = models.DateField()

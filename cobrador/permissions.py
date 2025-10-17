@@ -33,3 +33,38 @@ class IsAdminOrSupervisorOrReadOnly(BasePermission):
         if not is_auth:
             return False
         return getattr(u, "role", None) in {"admin", "supervisor"}
+    
+class IsAdminSupervisorOrCobradorCreate(BasePermission):
+    """
+    - GET/HEAD/OPTIONS: requiere estar autenticado (cualquier rol).
+    - POST: permitido a admin, supervisor y cobrador.
+    - PUT/PATCH/DELETE: solo admin o supervisor.
+    """
+    def has_permission(self, request, view):
+        u = getattr(request, "user", None)
+        is_auth = bool(u and getattr(u, "is_authenticated", False))
+        if request.method in SAFE_METHODS:
+            return is_auth
+        if not is_auth:
+            return False
+        if request.method == "POST":
+            return getattr(u, "role", None) in {"admin", "supervisor", "cobrador"}
+        return getattr(u, "role", None) in {"admin", "supervisor"}
+    
+
+class IsAdminOnlyWriteExceptPost(BasePermission):
+    """
+    - GET/HEAD/OPTIONS: requiere estar autenticado (cualquier rol).
+    - POST: permitido a admin, supervisor y cobrador.
+    - PUT/PATCH/DELETE: solo admin.
+    """
+    def has_permission(self, request, view):
+        u = getattr(request, "user", None)
+        is_auth = bool(u and getattr(u, "is_authenticated", False))
+        if request.method in SAFE_METHODS:
+            return is_auth
+        if not is_auth:
+            return False
+        if request.method == "POST":
+            return getattr(u, "role", None) in {"admin", "supervisor", "cobrador"}
+        return getattr(u, "role", None) == "admin"
