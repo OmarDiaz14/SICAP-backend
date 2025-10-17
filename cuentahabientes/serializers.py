@@ -23,3 +23,18 @@ class CuentahabienteSerializer(serializers.ModelSerializer):
         srv = validated_data["servicio"]         # instancia de Servicio (por FK)
         validated_data["saldo_pendiente"] = srv.costo  # Decimal exacto
         return super().create(validated_data)
+
+
+# cuentahabientes/serializers.py
+from rest_framework import serializers
+from .models_views import VistaPagos, VistaHistorial
+
+class VistaPagosSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VistaPagos
+        fields = "__all__"
+
+class VistaHistorialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VistaHistorial
+        fields = "__all__"
