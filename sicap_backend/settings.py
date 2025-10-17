@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'pagos',
     'sector',
     'servicio',
+    'django_filters',
 
     
 ]
@@ -175,6 +176,11 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
+
+     'DEFAULT_FILTER_BACKENDS': [
+         'django_filters.rest_framework.DjangoFilterBackend'
+    ],
+
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'cobrador.auth.JWTAuthentication',
     ],
