@@ -74,18 +74,25 @@ def calcular_estatus(pagos, saldo_final, fecha_actual=None):
     if saldo_final == 0:
         return "Pagado"
     
-    # Contar cuántos meses únicos ha pagado
+    # Si no tiene pagos registrados
+    if not pagos:
+        return "Adeudo"
+    
+    # Contar cuántos meses únicos ha pagado y calcular monto total
     meses_pagados = set()
+    monto_total_pagado = 0
+    
     for pago in pagos:
         if pago["monto_recibido"] > 0 or pago["monto_descuento"] > 0:
             mes_num = mes_a_num(pago["mes"])
             anio = pago["anio"]
             meses_pagados.add((anio, mes_num))
+            monto_total_pagado += pago["monto_recibido"] + pago["monto_descuento"]
     
     total_meses_pagados = len(meses_pagados)
     
-    # Si no ha pagado nada o solo 1-2 meses
-    if total_meses_pagados <= 2:
+    # Si no ha pagado nada
+    if total_meses_pagados == 0:
         return "Adeudo"
     
     # Verificar si está al corriente (pagado hasta mes actual o adelantado)
@@ -101,6 +108,24 @@ def calcular_estatus(pagos, saldo_final, fecha_actual=None):
         if (ultimo_anio > anio_actual or 
             (ultimo_anio == anio_actual and ultimo_mes >= mes_actual)):
             return "Corriente"
+        
+        # Si el último pago fue hace 1-2 meses pero ha pagado mucho
+        meses_desde_ultimo = (anio_actual - ultimo_anio) * 12 + (mes_actual - ultimo_mes)
+        if meses_desde_ultimo <= 2 and total_meses_pagados >= 6:
+            return "Corriente"
+    
+    # Casos especiales: pago único grande (casi todo el año)
+    # Si pagó más de $600 en un solo pago, considerarlo corriente si es reciente
+    if total_meses_pagados == 1 and monto_total_pagado >= 600:
+        if meses_ordenados:
+            ultimo_anio, ultimo_mes = meses_ordenados[-1]
+            meses_desde_ultimo = (anio_actual - ultimo_anio) * 12 + (mes_actual - ultimo_mes)
+            if meses_desde_ultimo <= 3:  # Dentro de los últimos 3 meses
+                return "Corriente"
+    
+    # Si solo ha pagado 1-2 meses (y no es pago grande)
+    if total_meses_pagados <= 2:
+        return "Adeudo"
     
     # Si pagó entre 3 y 6 meses (pero no está al corriente)
     if 3 <= total_meses_pagados <= 6:
@@ -197,10 +222,13 @@ class Command(BaseCommand):
                     filas_saltadas += 1
                     continue
 
+                # Crear clave única para identificar al cuentahabiente
+                # Si tiene número de contrato, usarlo como clave principal (cada contrato es único)
+                # Si no tiene contrato, agrupar por nombre completo
                 if numero_contrato:
-                    clave = (numero_contrato, None, None, None, nombre_colonia)
+                    clave = f"contrato_{numero_contrato}"
                 else:
-                    clave = (None, nombres.lower(), ap.lower(), am.lower(), nombre_colonia)
+                    clave = f"nombre_{nombres.lower().strip()}_{ap.lower().strip()}_{am.lower().strip()}_{nombre_colonia.lower().strip()}"
 
                 if clave not in cuentahabientes_data:
                     cuentahabientes_data[clave] = {
@@ -214,6 +242,10 @@ class Command(BaseCommand):
                         "colonia": nombre_colonia,
                         "pagos": []
                     }
+                else:
+                    # Si ya existe pero no tenía número de contrato y ahora sí
+                    if cuentahabientes_data[clave]["numero_contrato"] is None and numero_contrato:
+                        cuentahabientes_data[clave]["numero_contrato"] = numero_contrato
 
                 monto_recibido = _pick(row_values, headers, "monto_recibido", default=0)
                 try:
@@ -227,6 +259,7 @@ class Command(BaseCommand):
                 except:
                     monto_descuento = 0
 
+                # Solo agregar si realmente hay un pago (al menos uno de los dos debe ser > 0)
                 if monto_recibido > 0 or monto_descuento > 0:
                     mes = _pick(row_values, headers, "mes", default="Enero")
                     anio = _pick(row_values, headers, "anio", default=dt.date.today().year, cast=int)
@@ -239,6 +272,13 @@ class Command(BaseCommand):
                         "monto_descuento": monto_descuento,
                         "saldo_pendiente": saldo_pendiente
                     })
+                else:
+                    # Si no hay pago pero hay saldo_pendiente, guardarlo para cálculo final
+                    saldo_pendiente = _pick(row_values, headers, "saldo_pendiente", default=None)
+                    if saldo_pendiente is not None and clave in cuentahabientes_data:
+                        # Actualizar el saldo más reciente conocido
+                        if "ultimo_saldo_conocido" not in cuentahabientes_data[clave]:
+                            cuentahabientes_data[clave]["ultimo_saldo_conocido"] = saldo_pendiente
 
             except Exception as e:
                 self.stderr.write(self.style.WARNING(f"[Lectura fila {filas_procesadas}] Error: {e}"))
@@ -301,6 +341,13 @@ class Command(BaseCommand):
                                 saldo_final = 0
                         else:
                             saldo_final = int(Decimal(servicio.costo))
+                        
+                        # Si hay un saldo conocido registrado (de filas sin pago), usarlo
+                        if "ultimo_saldo_conocido" in datos and datos["ultimo_saldo_conocido"] is not None:
+                            try:
+                                saldo_final = int(datos["ultimo_saldo_conocido"])
+                            except:
+                                pass
                         
                         # Calcular estatus
                         estatus = calcular_estatus(datos["pagos"], saldo_final)
@@ -404,17 +451,27 @@ class Command(BaseCommand):
 
                                 mes_texto = str(pago_data["mes"]).strip().capitalize()
 
-                                Pago.objects.create(
-                                    descuento=descuento,
-                                    cobrador=cobrador,
+                                # Verificar si ya existe este pago para evitar duplicados
+                                pago_existente = Pago.objects.filter(
                                     cuentahabiente=ch,
-                                    fecha_pago=fecha_pago,
-                                    monto_recibido=pago_data["monto_recibido"],
-                                    monto_descuento=pago_data["monto_descuento"],
                                     mes=mes_texto,
                                     anio=int(pago_data["anio"]),
-                                )
-                                pagos_creados += 1
+                                    monto_recibido=pago_data["monto_recibido"],
+                                    monto_descuento=pago_data["monto_descuento"]
+                                ).first()
+
+                                if not pago_existente:
+                                    Pago.objects.create(
+                                        descuento=descuento,
+                                        cobrador=cobrador,
+                                        cuentahabiente=ch,
+                                        fecha_pago=fecha_pago,
+                                        monto_recibido=pago_data["monto_recibido"],
+                                        monto_descuento=pago_data["monto_descuento"],
+                                        mes=mes_texto,
+                                        anio=int(pago_data["anio"]),
+                                    )
+                                    pagos_creados += 1
 
                     except Exception as e:
                         errores += 1
