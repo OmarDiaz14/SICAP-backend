@@ -21,6 +21,10 @@ class PagoCreateSerializer(serializers.ModelSerializer):
         queryset=Cuentahabiente.objects.all()
     )
 
+    comentarios = serializers.CharField(
+        max_length= 256, required= False, allow_blank = True , allow_null= True 
+    )
+
     class Meta:
         model = Pago
         fields = (
@@ -32,6 +36,7 @@ class PagoCreateSerializer(serializers.ModelSerializer):
             "monto_descuento",  # <- lo calculamos; lo dejamos read_only
             "mes",
             "anio",
+            "comentarios"
         )
         read_only_fields = ("id_pago", "monto_descuento")
 
@@ -63,6 +68,7 @@ class PagoCreateSerializer(serializers.ModelSerializer):
 
         monto_recibido = Decimal(validated_data["monto_recibido"])
         descuento_obj: Descuento | None = validated_data.get("descuento")
+        comentarios = validated_data.pop("comentarios", None)
 
         # Calcula descuento (si hay)
         monto_descuento = Decimal("0.00")
@@ -93,6 +99,7 @@ class PagoCreateSerializer(serializers.ModelSerializer):
             monto_descuento=monto_descuento,
             mes=validated_data["mes"],
             anio=validated_data["anio"],
+            comentarios=comentarios,
         )
         return pago
 
@@ -118,7 +125,9 @@ class PagoReadSerializer(serializers.ModelSerializer):
             "monto_descuento",
             "mes",
             "anio",
+            "comentarios",
             "saldo_pendiente_actual",  # estado actual del CH tras el pago
+            
         )
 
     def get_cuentahabiente_nombre(self, obj):

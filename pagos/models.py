@@ -13,6 +13,7 @@ class Pago(models.Model):
     monto_descuento = models.IntegerField()
     mes = models.CharField(max_length=20)
     anio = models.IntegerField()
+    comentarios = models.CharField(max_length=256, null=True, blank=True)
 
     def __str__(self):
         return f"Pago {self.id_pago} - Cuentahabiente: {self.cuentahabiente.nombres} {self.cuentahabiente.ap} {self.cuentahabiente.am} - Monto: {self.monto_recibido}"
