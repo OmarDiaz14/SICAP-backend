@@ -14,13 +14,15 @@ class VistaPagos(models.Model):
         db_table = 'vista_pagos'
 
 class VistaHistorial(models.Model):
+    id = models.BigIntegerField(primary_key=True)
     numero_contrato = models.IntegerField()
     fecha_pago = models.DateField()
     monto_recibido = models.DecimalField(max_digits=12, decimal_places=2)
     mes = models.CharField(max_length=20)
     anio = models.IntegerField()
-    id = models.BigIntegerField(primary_key=True)
+    nombre_descuento = models.CharField(max_length=150, null=True, blank=True)
 
     class Meta:
         managed = False
-        db_table = 'vista_historial'
+        db_table = 'vista_historial_api'
+        ordering = ['-fecha_pago', 'numero_contrato']

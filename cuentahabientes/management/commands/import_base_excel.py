@@ -51,8 +51,11 @@ def _pick(row_values, headers, key, default=None, cast=None):
     return default
 
 
-def _mes_a_num(mes: str) -> int:
-    mes = (mes or "").strip().lower()
+def mes_a_num(mes):
+    """Convierte nombre de mes a número"""
+    if mes is None:
+        return 1
+    mes = str(mes).strip().lower()
     mapa = {
         "enero": 1, "febrero": 2, "marzo": 3, "abril": 4,
         "mayo": 5, "junio": 6, "julio": 7, "agosto": 8,
@@ -62,6 +65,54 @@ def _mes_a_num(mes: str) -> int:
     return mapa.get(mes, 1)
 
 
+def calcular_estatus(pagos, saldo_final, fecha_actual=None):
+    """Calcula el estatus del cuentahabiente basándose en sus pagos"""
+    if fecha_actual is None:
+        fecha_actual = dt.date.today()
+    
+    # Si no tiene saldo pendiente, está pagado
+    if saldo_final == 0:
+        return "Pagado"
+    
+    # Contar cuántos meses únicos ha pagado
+    meses_pagados = set()
+    for pago in pagos:
+        if pago["monto_recibido"] > 0 or pago["monto_descuento"] > 0:
+            mes_num = mes_a_num(pago["mes"])
+            anio = pago["anio"]
+            meses_pagados.add((anio, mes_num))
+    
+    total_meses_pagados = len(meses_pagados)
+    
+    # Si no ha pagado nada o solo 1-2 meses
+    if total_meses_pagados <= 2:
+        return "Adeudo"
+    
+    # Verificar si está al corriente (pagado hasta mes actual o adelantado)
+    mes_actual = fecha_actual.month
+    anio_actual = fecha_actual.year
+    
+    # Buscar el último mes pagado
+    if meses_pagados:
+        meses_ordenados = sorted(meses_pagados, key=lambda x: (x[0], x[1]))
+        ultimo_anio, ultimo_mes = meses_ordenados[-1]
+        
+        # Si pagó el mes actual o está adelantado
+        if (ultimo_anio > anio_actual or 
+            (ultimo_anio == anio_actual and ultimo_mes >= mes_actual)):
+            return "Corriente"
+    
+    # Si pagó entre 3 y 6 meses (pero no está al corriente)
+    if 3 <= total_meses_pagados <= 6:
+        return "Rezagado"
+    
+    # Si pagó más de 6 meses pero no está al corriente
+    if total_meses_pagados > 6:
+        return "Rezagado"
+    
+    return "Adeudo"
+
+
 class Command(BaseCommand):
     help = "Importa Cuentahabientes desde Excel con múltiples pagos por persona."
 
@@ -69,6 +120,8 @@ class Command(BaseCommand):
         parser.add_argument("ruta_excel", type=str, help="Ruta del archivo .xlsx")
         parser.add_argument("--hoja", type=str, default=None,
                             help="Nombre de la hoja. Si no se indica, se usa la primera.")
+        parser.add_argument("--fila-header", type=int, default=1,
+                            help="Número de fila donde están los encabezados (default: 1).")
         parser.add_argument("--servicio", type=str, required=True,
                             help="Nombre del Servicio a asignar.")
         parser.add_argument("--cobrador", type=str, required=True,
@@ -88,6 +141,7 @@ class Command(BaseCommand):
             raise CommandError(f"No existe el archivo: {ruta}")
 
         hoja = opts["hoja"]
+        fila_header = opts["fila_header"]
         dry = opts["dry_run"]
         crear_pagos = opts["crear_pagos"]
         generar_contratos = opts["generar_contratos"]
@@ -112,13 +166,17 @@ class Command(BaseCommand):
         # Abre el Excel
         wb = openpyxl.load_workbook(ruta, data_only=True)
         ws = wb[hoja] if hoja else wb.worksheets[0]
-        headers = [str(c or "").strip() for c in next(ws.iter_rows(min_row=1, max_row=1, values_only=True))]
+        headers = [str(c or "").strip() for c in next(ws.iter_rows(min_row=fila_header, max_row=fila_header, values_only=True))]
+        
+        self.stdout.write(self.style.WARNING(f"Headers detectados: {headers}"))
 
         # === PASO 1: AGRUPAR DATOS POR CUENTAHABIENTE ===
-        # Usamos diccionario con clave = (numero_contrato, nombres, ap, am, colonia)
         cuentahabientes_data = {}
+        filas_procesadas = 0
+        filas_saltadas = 0
         
-        for row_values in ws.iter_rows(min_row=2, values_only=True):
+        for row_values in ws.iter_rows(min_row=fila_header + 1, values_only=True):
+            filas_procesadas += 1
             try:
                 numero_contrato = _pick(row_values, headers, "numero_contrato", cast=int)
                 nombres = (_pick(row_values, headers, "nombres", default="") or "").strip()
@@ -126,21 +184,24 @@ class Command(BaseCommand):
                 am = (_pick(row_values, headers, "am", default="") or "").strip()
                 nombre_colonia = (_pick(row_values, headers, "colonia", default="") or "").strip()
 
-                # Si no hay datos mínimos, saltar
+                if filas_procesadas == 1:
+                    self.stdout.write(self.style.WARNING(
+                        f"Primera fila - Contrato: {numero_contrato}, "
+                        f"Nombre: {nombres}, AP: {ap}, Colonia: {nombre_colonia}"
+                    ))
+
                 if not nombres and not ap and not numero_contrato:
+                    filas_saltadas += 1
                     continue
                 if not nombre_colonia:
+                    filas_saltadas += 1
                     continue
 
-                # Crear una clave única para identificar al cuentahabiente
-                # Si tiene número de contrato, usarlo como clave principal
                 if numero_contrato:
                     clave = (numero_contrato, None, None, None, nombre_colonia)
                 else:
-                    # Sin contrato, usar nombre completo + colonia
                     clave = (None, nombres.lower(), ap.lower(), am.lower(), nombre_colonia)
 
-                # Si no existe, inicializar
                 if clave not in cuentahabientes_data:
                     cuentahabientes_data[clave] = {
                         "numero_contrato": numero_contrato,
@@ -154,7 +215,6 @@ class Command(BaseCommand):
                         "pagos": []
                     }
 
-                # Agregar pago a la lista
                 monto_recibido = _pick(row_values, headers, "monto_recibido", default=0)
                 try:
                     monto_recibido = int(monto_recibido or 0)
@@ -167,7 +227,6 @@ class Command(BaseCommand):
                 except:
                     monto_descuento = 0
 
-                # Solo agregar si hay movimiento
                 if monto_recibido > 0 or monto_descuento > 0:
                     mes = _pick(row_values, headers, "mes", default="Enero")
                     anio = _pick(row_values, headers, "anio", default=dt.date.today().year, cast=int)
@@ -182,8 +241,13 @@ class Command(BaseCommand):
                     })
 
             except Exception as e:
-                self.stderr.write(self.style.WARNING(f"[Lectura] Error: {e}"))
+                self.stderr.write(self.style.WARNING(f"[Lectura fila {filas_procesadas}] Error: {e}"))
                 continue
+
+        self.stdout.write(self.style.WARNING(
+            f"Filas procesadas: {filas_procesadas}, Saltadas: {filas_saltadas}, "
+            f"Cuentahabientes únicos encontrados: {len(cuentahabientes_data)}"
+        ))
 
         # === PASO 2: PROCESAR CUENTAHABIENTES ÚNICOS ===
         creados = 0
@@ -192,7 +256,6 @@ class Command(BaseCommand):
         errores = 0
         contratos_generados = 0
 
-        # Si se va a generar contratos, obtener el último número usado
         if generar_contratos:
             ultimo_contrato = Cuentahabiente.objects.filter(
                 numero_contrato__isnull=False
@@ -209,26 +272,38 @@ class Command(BaseCommand):
                         numero_contrato = datos["numero_contrato"]
                         nombre_colonia = datos["colonia"]
 
-                        # Obtener colonia
                         try:
                             colonia = Colonia.objects.get(nombre_colonia__iexact=nombre_colonia)
                         except Colonia.DoesNotExist:
-                            raise CommandError(f"Colonia '{nombre_colonia}' no existe.")
+                            self.stderr.write(self.style.ERROR(f"Colonia '{nombre_colonia}' no existe."))
+                            errores += 1
+                            continue
 
-                        # Calcular saldo inicial (último saldo_pendiente de los pagos si existe)
-                        saldo_inicial = None
-                        if datos["pagos"]:
-                            # Tomar el último saldo reportado
-                            for pago in reversed(datos["pagos"]):
-                                if pago["saldo_pendiente"] is not None:
-                                    try:
-                                        saldo_inicial = int(pago["saldo_pendiente"])
-                                        break
-                                    except:
-                                        pass
+                        # Calcular saldo final
+                        saldo_final = None
                         
-                        if saldo_inicial is None:
-                            saldo_inicial = int(Decimal(servicio.costo))
+                        if datos["pagos"]:
+                            pagos_ordenados = sorted(
+                                datos["pagos"], 
+                                key=lambda p: (p["anio"], mes_a_num(p["mes"]))
+                            )
+                            
+                            ultimo_pago = pagos_ordenados[-1]
+                            
+                            if ultimo_pago["saldo_pendiente"] is not None:
+                                try:
+                                    saldo_antes = int(ultimo_pago["saldo_pendiente"])
+                                    pago_aplicado = ultimo_pago["monto_recibido"] + ultimo_pago["monto_descuento"]
+                                    saldo_final = max(0, saldo_antes - pago_aplicado)
+                                except:
+                                    saldo_final = 0
+                            else:
+                                saldo_final = 0
+                        else:
+                            saldo_final = int(Decimal(servicio.costo))
+                        
+                        # Calcular estatus
+                        estatus = calcular_estatus(datos["pagos"], saldo_final)
 
                         # Crear o actualizar cuentahabiente
                         if numero_contrato:
@@ -243,14 +318,12 @@ class Command(BaseCommand):
                                     "telefono": datos["telefono"],
                                     "colonia": colonia,
                                     "servicio": servicio,
-                                    "saldo_pendiente": saldo_inicial,
-                                    "deuda": "Al corriente" if saldo_inicial == 0 else "Con adeudo",
+                                    "saldo_pendiente": saldo_final,
+                                    "deuda": estatus,
                                 }
                             )
                         else:
-                            # Sin contrato
                             if generar_contratos:
-                                # Generar número automático
                                 while Cuentahabiente.objects.filter(numero_contrato=proximo_contrato).exists():
                                     proximo_contrato += 1
                                 
@@ -265,14 +338,13 @@ class Command(BaseCommand):
                                         "telefono": datos["telefono"],
                                         "colonia": colonia,
                                         "servicio": servicio,
-                                        "saldo_pendiente": saldo_inicial,
-                                        "deuda": "Al corriente" if saldo_inicial == 0 else "Con adeudo",
+                                        "saldo_pendiente": saldo_final,
+                                        "deuda": estatus,
                                     }
                                 )
                                 contratos_generados += 1
                                 proximo_contrato += 1
                             else:
-                                # Buscar duplicado por nombre
                                 ch = Cuentahabiente.objects.filter(
                                     nombres__iexact=datos["nombres"],
                                     ap__iexact=datos["ap"],
@@ -286,8 +358,8 @@ class Command(BaseCommand):
                                     ch.numero = datos["numero"]
                                     ch.telefono = datos["telefono"]
                                     ch.servicio = servicio
-                                    ch.saldo_pendiente = saldo_inicial
-                                    ch.deuda = "Al corriente" if saldo_inicial == 0 else "Con adeudo"
+                                    ch.saldo_pendiente = saldo_final
+                                    ch.deuda = estatus
                                     ch.save()
                                     created = False
                                 else:
@@ -301,8 +373,8 @@ class Command(BaseCommand):
                                         telefono=datos["telefono"],
                                         colonia=colonia,
                                         servicio=servicio,
-                                        saldo_pendiente=saldo_inicial,
-                                        deuda="Al corriente" if saldo_inicial == 0 else "Con adeudo",
+                                        saldo_pendiente=saldo_final,
+                                        deuda=estatus,
                                     )
                                     created = True
 
@@ -311,25 +383,26 @@ class Command(BaseCommand):
                         else:
                             actualizados += 1
 
-                        # Crear todos los pagos de este cuentahabiente
+                        # Crear pagos
                         if crear_pagos:
                             for pago_data in datos["pagos"]:
                                 try:
                                     fecha_pago = dt.date(
                                         int(pago_data["anio"]), 
-                                        _mes_a_num(pago_data["mes"]), 
-                                        1
+                                        mes_a_num(pago_data["mes"]), 
+                                        15
                                     )
                                 except:
                                     fecha_pago = dt.date.today()
 
-                                # Determinar descuento
                                 descuento = None
                                 monto_desc = pago_data["monto_descuento"]
                                 if monto_desc == 60 and desc_pp:
                                     descuento = desc_pp
                                 elif monto_desc in (300, 360) and desc_inapam:
                                     descuento = desc_inapam
+
+                                mes_texto = str(pago_data["mes"]).strip().capitalize()
 
                                 Pago.objects.create(
                                     descuento=descuento,
@@ -338,7 +411,7 @@ class Command(BaseCommand):
                                     fecha_pago=fecha_pago,
                                     monto_recibido=pago_data["monto_recibido"],
                                     monto_descuento=pago_data["monto_descuento"],
-                                    mes=str(pago_data["mes"]),
+                                    mes=mes_texto,
                                     anio=int(pago_data["anio"]),
                                 )
                                 pagos_creados += 1
@@ -351,7 +424,7 @@ class Command(BaseCommand):
                 if dry:
                     transaction.set_rollback(True)
 
-            except Exception:
+            except Exception as e:
                 transaction.set_rollback(True)
                 raise
 
