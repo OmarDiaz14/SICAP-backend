@@ -1,5 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 from .models import Pago
 from cuentahabientes.models import Cuentahabiente
@@ -11,9 +12,8 @@ class PagoCreateSerializer(serializers.ModelSerializer):
     Serializer para CREAR pagos.
     - 'cobrador' se toma del request (no viene en el body).
     - 'monto_descuento' se calcula usando el porcentaje del descuento elegido.
-    - Actualiza el saldo_pendiente del cuentahabiente en la misma transacción.
+    - Actualiza el saldo_pendiente y el estatus de deuda del cuentahabiente.
     """
-    # Solo permitir que el cliente mande: cuentahabiente, descuento (opcional), fecha, monto, mes, anio
     descuento = serializers.PrimaryKeyRelatedField(
         queryset=Descuento.objects.all(), required=False, allow_null=True
     )
@@ -22,7 +22,7 @@ class PagoCreateSerializer(serializers.ModelSerializer):
     )
 
     comentarios = serializers.CharField(
-        max_length= 256, required= False, allow_blank = True , allow_null= True 
+        max_length=256, required=False, allow_blank=True, allow_null=True 
     )
 
     class Meta:
@@ -33,7 +33,7 @@ class PagoCreateSerializer(serializers.ModelSerializer):
             "cuentahabiente",
             "fecha_pago",
             "monto_recibido",
-            "monto_descuento",  # <- lo calculamos; lo dejamos read_only
+            "monto_descuento",
             "mes",
             "anio",
             "comentarios"
@@ -46,24 +46,78 @@ class PagoCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        # (Opcional) valida mes/año/formato adicional
         return attrs
+
+    def calcular_estatus_deuda(self, cuentahabiente):
+        """
+        Calcula el estatus de deuda basándose en:
+        1. El saldo pendiente
+        2. Los meses pagados vs meses transcurridos del año
+        
+        Retorna: 'pagado', 'corriente', 'rezagado', o 'adeudo'
+        """
+        # Si no hay saldo pendiente, está pagado
+        if cuentahabiente.saldo_pendiente <= 0:
+            return 'pagado'
+        
+        # Obtener el servicio y su costo anual
+        if not cuentahabiente.servicio:
+            return 'adeudo'
+        
+        costo_anual = Decimal(cuentahabiente.servicio.costo)
+        
+        # Calcular cuánto ha pagado (costo anual - saldo pendiente)
+        total_pagado = costo_anual - Decimal(cuentahabiente.saldo_pendiente)
+        
+        # Si el total pagado es negativo o cero, es adeudo
+        if total_pagado <= 0:
+            return 'adeudo'
+        
+        # Obtener mes actual del año (1-12)
+        mes_actual = timezone.now().month
+        
+        # Calcular costo mensual
+        costo_mensual = costo_anual / 12
+        
+        # Calcular cuántos meses ha pagado realmente
+        meses_pagados = (total_pagado / costo_mensual) if costo_mensual > 0 else 0
+        
+        # Calcular meses que debería haber pagado hasta ahora
+        meses_esperados = mes_actual
+        
+        # Determinar estatus con tolerancia de medio mes
+        # Si está pagado completamente (12 meses o más)
+        if meses_pagados >= 12:
+            return 'pagado'
+        
+        # Si ha pagado al menos hasta el mes actual (con margen de 0.5 meses)
+        elif meses_pagados >= (meses_esperados - 0.5):
+            return 'corriente'
+        
+        # Si ha pagado al menos la mitad del tiempo transcurrido
+        elif meses_pagados >= (meses_esperados / 2):
+            return 'rezagado'
+        
+        # Si ha pagado menos de la mitad o menos de 2 meses
+        else:
+            return 'adeudo'
 
     @transaction.atomic
     def create(self, validated_data):
         """
         1) Calcula monto_descuento = monto_recibido * (porcentaje/100) si hay descuento.
-        2) Baja el saldo_pendiente del cuentahabiente = saldo - (monto_recibido + monto_descuento).
-        3) Setea el cobrador desde request.user.
+        2) Baja el saldo_pendiente del cuentahabiente.
+        3) Actualiza el estatus de deuda del cuentahabiente.
+        4) Setea el cobrador desde request.user.
         """
         request = self.context.get("request")
         if not request or not getattr(request.user, "is_authenticated", False):
             raise serializers.ValidationError("Autenticación requerida.")
 
-        cobrador = request.user  # viene de tu auth JWT -> Cobrador
+        cobrador = request.user
         ch: Cuentahabiente = validated_data["cuentahabiente"]
 
-        # Lock pesimista para evitar race (dos pagos al mismo tiempo)
+        # Lock pesimista para evitar race conditions
         ch_locked = Cuentahabiente.objects.select_for_update().get(pk=ch.pk)
 
         monto_recibido = Decimal(validated_data["monto_recibido"])
@@ -71,32 +125,50 @@ class PagoCreateSerializer(serializers.ModelSerializer):
         comentarios = validated_data.pop("comentarios", None)
 
         # Calcula descuento (si hay)
+        # IMPORTANTE: El descuento NO es un porcentaje, es un MONTO FIJO
+        # que está almacenado en el campo "porcentaje" (mal nombrado)
         monto_descuento = Decimal("0.00")
         if descuento_obj:
-            # porcentaje es Decimal con 2 decimales (ej 10.00)
-            porcentaje = Decimal(descuento_obj.porcentaje)
-            monto_descuento = (monto_recibido * porcentaje / Decimal("100")).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
-            )
+            # El campo "porcentaje" en realidad contiene el MONTO del descuento
+            # Ejemplo: Pago_Temprano = 60 (un mes gratis)
+            #          INAPAM = 360 (mitad del servicio anual)
+            monto_descuento = Decimal(str(descuento_obj.porcentaje))
 
-        # Nuevo saldo = saldo actual - (monto + descuento)
-        saldo_actual = Decimal(ch_locked.saldo_pendiente or 0)
-        nuevo_saldo = saldo_actual - (monto_recibido + monto_descuento)
+        # Calcular el total a restar (monto recibido + monto del descuento FIJO)
+        total_a_restar = monto_recibido + monto_descuento
+        
+        # Nuevo saldo = saldo actual - total_a_restar
+        saldo_actual = Decimal(str(ch_locked.saldo_pendiente or 0))
+        nuevo_saldo_decimal = saldo_actual - total_a_restar
+        
+        # Redondear a entero
+        nuevo_saldo = int(nuevo_saldo_decimal.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        
+        # Si el saldo queda negativo, lo dejamos en 0
         if nuevo_saldo < 0:
-            nuevo_saldo = Decimal("0.00")
+            nuevo_saldo = 0
 
-        # Persistimos el nuevo saldo
+        # Actualizar saldo pendiente PRIMERO
         ch_locked.saldo_pendiente = nuevo_saldo
-        ch_locked.save(update_fields=["saldo_pendiente"])
+        
+        # Calcular estatus DESPUÉS de actualizar el saldo
+        nuevo_estatus = self.calcular_estatus_deuda(ch_locked)
+        ch_locked.deuda = nuevo_estatus
+        
+        # Guardar cambios en el cuentahabiente
+        ch_locked.save(update_fields=["saldo_pendiente", "deuda"])
 
-        # Crear pago con cobrador del request y monto_descuento calculado
+        # Crear el registro de pago
+        # Convertir montos a entero para IntegerField
+        monto_descuento_int = int(monto_descuento.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        
         pago = Pago.objects.create(
             descuento=descuento_obj,
             cobrador=cobrador,
             cuentahabiente=ch_locked,
             fecha_pago=validated_data["fecha_pago"],
-            monto_recibido=monto_recibido,
-            monto_descuento=monto_descuento,
+            monto_recibido=int(monto_recibido),
+            monto_descuento=monto_descuento_int,
             mes=validated_data["mes"],
             anio=validated_data["anio"],
             comentarios=comentarios,
@@ -112,6 +184,7 @@ class PagoReadSerializer(serializers.ModelSerializer):
     cobrador_usuario = serializers.CharField(source="cobrador.usuario", read_only=True)
     cuentahabiente_nombre = serializers.SerializerMethodField()
     saldo_pendiente_actual = serializers.SerializerMethodField()
+    estatus_deuda = serializers.CharField(source="cuentahabiente.deuda", read_only=True)
 
     class Meta:
         model = Pago
@@ -126,8 +199,8 @@ class PagoReadSerializer(serializers.ModelSerializer):
             "mes",
             "anio",
             "comentarios",
-            "saldo_pendiente_actual",  # estado actual del CH tras el pago
-            
+            "saldo_pendiente_actual",
+            "estatus_deuda",
         )
 
     def get_cuentahabiente_nombre(self, obj):
