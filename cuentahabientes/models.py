@@ -3,6 +3,14 @@ from colonia.models import Colonia
 from servicio.models import Servicio
 # Create your models here.
 class Cuentahabiente(models.Model):
+    ESTATUS_DEUDA = [
+        ('pagado', 'Pagado'),
+        ('corriente', 'Corriente'),
+        ('rezagado', 'Rezagado'),
+        ('adeudo', 'Adeudo'),
+    ]
+
+
     id_cuentahabiente = models.AutoField(primary_key=True)
     numero_contrato = models.IntegerField(unique=True)
     nombres = models.CharField(max_length=25)
@@ -16,7 +24,9 @@ class Cuentahabiente(models.Model):
     deuda = models.CharField(max_length=20)
     saldo_pendiente = models.IntegerField()
 
-    deuda = models.CharField(max_length=20)
+    deuda = models.CharField(max_length=20,
+                             choices=ESTATUS_DEUDA,
+                             default='adeudo')
 
 def __str__(self):
     return f"{self.nombres} {self.ap} {self.am}"
