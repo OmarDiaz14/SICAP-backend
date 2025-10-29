@@ -21,8 +21,9 @@ class VistaHistorial(models.Model):
     mes = models.CharField(max_length=20)
     anio = models.IntegerField()
     nombre_descuento = models.CharField(max_length=150, null=True, blank=True)
+    comentarios = models.TextField(null=True, blank=True)
 
     class Meta:
         managed = False
-        db_table = 'vista_historial_api'
+        db_table = 'vista_historial'
         ordering = ['-fecha_pago', 'numero_contrato']
