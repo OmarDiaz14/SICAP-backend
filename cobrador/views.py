@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status, permissions, filters, generics
+from rest_framework.permissions import IsAuthenticated
 from .serializers import (
     LoginSerializer, SignupSerializer, AdminCreateUserSerializer, CobradorPublicSerializer
 )
@@ -52,6 +53,29 @@ class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request):
         return Response(CobradorPublicSerializer(request.user).data)
+    
+
+class CobradorListView(generics.ListAPIView):
+    """
+    GET /auth/cobradores/?search=...&role=...
+    - Solo admin o supervisor.
+    - Por defecto muestra usuarios con role='cobrador'.
+    """
+    serializer_class = CobradorPublicSerializer
+    permission_classes = [IsAuthenticated & Roles("admin", "supervisor")]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["nombre", "apellidos", "usuario", "email"]
+    ordering_fields = ["nombre", "apellidos", "usuario", "id_cobrador"]
+    ordering = ["nombre", "apellidos"]
+
+    def get_queryset(self):
+        role = self.request.query_params.get("role", "cobrador")
+        qs = Cobrador.objects.filter(is_active=True)
+        if role:
+            qs = qs.filter(role=role)
+        # Solo campos públicos
+        return qs.only("id_cobrador", "nombre", "apellidos", "usuario", "email", "role")
+
 
 # ---- Ejemplos de vistas protegidas por rol ----
 """"class AdminDashboardView(APIView):

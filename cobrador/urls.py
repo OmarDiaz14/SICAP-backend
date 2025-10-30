@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import SignupView,LoginView, MeView,AdminCreateUserView
+from .views import CobradorListView
 
 
 urlpatterns = [
@@ -9,4 +10,7 @@ urlpatterns = [
 
     #solo es para Admin crear usuarios(y elegir el rol)
     path('auth/users/', AdminCreateUserView.as_view(), name='cobrador-users'), 
-]
+
+    #listado de cobradores 
+    path('auth/cobradores/',CobradorListView.as_view(), name = 'cobrador-list' ),
+] 
