@@ -171,15 +171,16 @@ class PagoCreateSerializer(serializers.ModelSerializer):
 class PagoReadSerializer(serializers.ModelSerializer):
     """
     Serializer para LEER pagos.
-    Incluye hora local de MX en un campo adicional.
+    ✅ SOLUCIÓN: Retorna fecha_pago como string YYYY-MM-DD sin timezone
     """
     descuento_nombre = serializers.CharField(source="descuento.nombre_descuento", read_only=True)
     cobrador_usuario = serializers.CharField(source="cobrador.usuario", read_only=True)
     cuentahabiente_nombre = serializers.SerializerMethodField()
     saldo_pendiente_actual = serializers.SerializerMethodField()
     estatus_deuda = serializers.CharField(source="cuentahabiente.deuda", read_only=True)
-    # ✅ Campo adicional para mostrar hora local
-    fecha_pago_local = serializers.SerializerMethodField()
+    
+    # ✅ SOLUCIÓN: Sobrescribir fecha_pago para retornar solo la fecha
+    fecha_pago = serializers.SerializerMethodField()
 
     class Meta:
         model = Pago
@@ -188,7 +189,7 @@ class PagoReadSerializer(serializers.ModelSerializer):
             "descuento", "descuento_nombre",
             "cobrador", "cobrador_usuario",
             "cuentahabiente", "cuentahabiente_nombre",
-            "fecha_pago", "fecha_pago_local",  # ✅ UTC + Local
+            "fecha_pago",  # ✅ Ahora retorna YYYY-MM-DD
             "monto_recibido",
             "monto_descuento",
             "mes",
@@ -205,9 +206,20 @@ class PagoReadSerializer(serializers.ModelSerializer):
     def get_saldo_pendiente_actual(self, obj):
         return obj.cuentahabiente.saldo_pendiente
 
-    def get_fecha_pago_local(self, obj):
-        # ✅ Convierte a zona local si es DateTimeField
+    def get_fecha_pago(self, obj):
+        """
+        ✅ CLAVE: Retorna fecha como string YYYY-MM-DD sin conversión de timezone
+        """
         fp = obj.fecha_pago
+        
+        # Si es DateTimeField, extraer solo la fecha en hora local
         if isinstance(fp, datetime):
-            return timezone.localtime(fp).isoformat()
-        return fp.isoformat()
+            fecha_local = timezone.localtime(fp)
+            return fecha_local.date().isoformat()
+        
+        # Si es DateField, retornar directamente
+        elif isinstance(fp, date):
+            return fp.isoformat()
+        
+        # Fallback
+        return str(fp)
