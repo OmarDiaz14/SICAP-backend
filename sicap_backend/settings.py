@@ -8,13 +8,21 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ---------- ENTORNO ----------
-ENV = os.environ.get("ENV", "dev").lower()  # "dev" | "prod"
-IS_PROD = ENV == "prod"
+APP_ENV = os.environ.get("APP_ENV", "dev").lower()  # "dev" | "prod"
+IS_PROD = APP_ENV == "prod"
 
-SECRET_KEY = os.environ["SECRET_KEY"] if IS_PROD else os.environ.get("SECRET_KEY", "dev-insecure-key")
-DEBUG = os.environ.get("DEBUG", "0") == "1" if IS_PROD else True
+def _to_bool(v: str, default=False) -> bool:
+    if v is None:
+        return default
+    return str(v).strip().lower() in {"1", "true", "yes", "on"}
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", ".onrender.com,localhost,127.0.0.1").split(",")
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-insecure-key")
+DEBUG = _to_bool(os.environ.get("DEBUG", "0" if IS_PROD else "1"))
+
+ALLOWED_HOSTS = os.environ.get(
+    "ALLOWED_HOSTS",
+    ".onrender.com,localhost,127.0.0.1"
+).split(",")
 
 # Tu dominio del front (prod). Ej: https://sicap-frontend-mbn-yvqv.vercel.app
 FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "https://sicap-frontend-mbn-yvqv.vercel.app")
@@ -81,19 +89,33 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ---------- DATABASE ----------
+# Dos URLs en .env: DATABASE_URL_DEV (Render u otra) y DATABASE_URL_PROD (tu server).
+DB_URL_DEV = os.environ.get("DATABASE_URL_DEV") or os.environ.get("DATABASE_URL")  # fallback por si ya usas DATABASE_URL
+DB_URL_PROD = os.environ.get("DATABASE_URL_PROD")
+
+# Elegimos según APP_ENV
+CHOSEN_DB_URL = DB_URL_PROD if IS_PROD else DB_URL_DEV
+
+# Si te conectas a Render, usa ssl_require=True (o agrega ?sslmode=require en la URL)
+SSL_REQUIRE = _to_bool(os.environ.get("RENDER", "0"))  # en Render pon RENDER=true
+
 DATABASES = {
     "default": dj_database_url.config(
-        default=os.environ.get("DATABASE_URL"),
+        default=CHOSEN_DB_URL,
         conn_max_age=600,
+        ssl_require=SSL_REQUIRE
     )
 }
 
 # Render usa proxy; respeta cabecera X-Forwarded-Proto
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# Extra: si no usas ssl_require y prefieres OPTIONS:
 if os.environ.get("RENDER", "") == "true":
-    DATABASES["default"]["OPTIONS"] = {"sslmode": "require"}
+    DATABASES["default"].setdefault("OPTIONS", {})
+    DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
 
+# DB de tests solo fuera de Render
 if "RENDER" not in os.environ:
     DATABASES["default"]["TEST"] = {"NAME": "test_mi_proyecto_db"}
 
@@ -123,11 +145,14 @@ else:
         "http://localhost:3000",
         FRONTEND_ORIGIN,
     ]
-    CORS_ALLOWED_ORIGIN_REGEXES = [r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$", r"^https://.*\.vercel\.app$"]
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        r"^https://.*\.vercel\.app$"
+    ]
 
 CSRF_TRUSTED_ORIGINS = ["https://*.onrender.com", "https://*.vercel.app"]
 
-CORS_ALLOW_CREDENTIALS = True  # si usas cookies; con JWT por Authorization no es necesario
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = ["authorization", "content-type"]
 
 # ---------- COOKIES / HTTPS ----------
@@ -136,11 +161,11 @@ CSRF_COOKIE_SECURE = IS_PROD
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_BROWSER_XSS_FILTER = True  # (obsoleto pero no daña)
+SECURE_BROWSER_XSS_FILTER = True  # (obsoleto pero inofensivo)
 X_FRAME_OPTIONS = "DENY"
 
-SECURE_SSL_REDIRECT = IS_PROD  # redirige HTTP -> HTTPS en prod
-SECURE_HSTS_SECONDS = 60 * 60 * 24 * 7 if IS_PROD else 0  # 1 semana; sube a 6 meses cuando esté estable
+SECURE_SSL_REDIRECT = IS_PROD
+SECURE_HSTS_SECONDS = 60 * 60 * 24 * 7 if IS_PROD else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = IS_PROD
 SECURE_HSTS_PRELOAD = IS_PROD
 
@@ -151,21 +176,17 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
-    # throttle REAL (activas clases y ratios)
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
-        # opcional por IP:
-        # "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "30/min",
         "user": "120/min",
-        # "vista-pagos": "60/min",  # si usas ScopedRateThrottle por vista/acción
     },
 }
 
-# Desactiva BrowsableAPI en prod (evitas exponer data “bonita” en el navegador)
+# Desactiva BrowsableAPI en prod
 if IS_PROD:
     REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [
         "rest_framework.renderers.JSONRenderer",
@@ -175,32 +196,20 @@ if IS_PROD:
 JWT_SETTINGS = {
     "ACCESS_TOKEN_LIFETIME": 60 * 60 * 24,  # 1 día
     "ALGORITHM": "HS256",
-    # idealmente clave JWT separada de SECRET_KEY:
     "SECRET": os.environ.get("JWT_SECRET", SECRET_KEY),
 }
 
 # ---------- LOGGING ----------
-# No loguees cuerpos de requests/responses ni variables sensibles en prod
 LOG_LEVEL = "INFO" if IS_PROD else "DEBUG"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "filters": {
-        "require_debug_false": {"()": "django.utils.log.RequireDebugFalse"},
-    },
-    "formatters": {
-        "simple": {"format": "[{levelname}] {name}: {message}", "style": "{"},
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "simple",
-        },
-    },
+    "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
+    "formatters": {"simple": {"format": "[{levelname}] {name}: {message}", "style": "{"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "simple"}},
     "loggers": {
         "django": {"handlers": ["console"], "level": LOG_LEVEL},
         "django.server": {"handlers": ["console"], "level": LOG_LEVEL},
-        # Evita verbosidad de drf/requests en prod
         "django.request": {"handlers": ["console"], "level": "WARNING" if IS_PROD else "INFO"},
         "urllib3": {"handlers": ["console"], "level": "WARNING"},
     },
