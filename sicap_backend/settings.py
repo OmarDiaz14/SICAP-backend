@@ -23,6 +23,7 @@ ALLOWED_HOSTS = [
         " .onrender.com",
         "localhost",
         "sicap.duckdns.org",
+        "sicap-backend.onrender.com",
         ]
 
 # Tu dominio del front (prod). Ej: https://sicap-frontend-mbn-yvqv.vercel.app
@@ -215,3 +216,8 @@ LOGGING = {
         "urllib3": {"handlers": ["console"], "level": "WARNING"},
     },
 }
+
+# ---------- WHATSAPP API (Meta) ----------
+WHATSAPP_API_BASE_URL = os.environ.get("WHATSAPP_API_BASE_URL", "https://graph.facebook.com/v21.0")
+WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
+WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
