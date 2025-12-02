@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import SignupView,LoginView, MeView,AdminCreateUserView
+from .views import SignupView,LoginView, MeView,AdminCreateUserView, CobradorEstadoView
 from .views import CobradorListView
 
 
@@ -13,4 +13,7 @@ urlpatterns = [
 
     #listado de cobradores 
     path('auth/cobradores/',CobradorListView.as_view(), name = 'cobrador-list' ),
+
+    path('auth/cobradores/<int:pk>/estado/', CobradorEstadoView.as_view(), name='cobrador-estado'),
+
 ] 

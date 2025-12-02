@@ -5,7 +5,7 @@ from .models import Cobrador
 class CobradorPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cobrador
-        fields = ("id_cobrador", "nombre", "apellidos", "usuario", "email","role")
+        fields = ("id_cobrador", "nombre", "apellidos", "usuario", "email","role", "is_active")
         read_only_fields = fields
 
 
