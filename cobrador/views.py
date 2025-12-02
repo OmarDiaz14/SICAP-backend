@@ -3,11 +3,11 @@ from rest_framework.response import Response
 from rest_framework import status, permissions, filters, generics
 from rest_framework.permissions import IsAuthenticated
 from .serializers import (
-    LoginSerializer, SignupSerializer, AdminCreateUserSerializer, CobradorPublicSerializer
-)
+    LoginSerializer, SignupSerializer, AdminCreateUserSerializer, CobradorPublicSerializer)
 from .models import Cobrador
 from .jwt_utils import create_access_token
 from .permissions import Roles
+from rest_framework.exceptions import NotFound
 
 class SignupView(APIView):
     """Autoregistro: siempre crea con rol 'cobrador'."""
@@ -69,12 +69,60 @@ class CobradorListView(generics.ListAPIView):
     ordering = ["nombre", "apellidos"]
 
     def get_queryset(self):
-        role = self.request.query_params.get("role", "cobrador")
+        role = self.request.query_params.get("role") or "cobrador"
         qs = Cobrador.objects.filter(is_active=True)
         if role:
             qs = qs.filter(role=role)
         # Solo campos públicos
-        return qs.only("id_cobrador", "nombre", "apellidos", "usuario", "email", "role")
+        return qs.only("id_cobrador", "nombre", "apellidos", "usuario", "email", "role", "is_active")
+
+class CobradorEstadoView(APIView):
+    """
+    PATCH /auth/cobradores/<id>/estado/
+    Body:
+    {
+        "is_active": true  // o false
+    }
+
+    Solo SUPERVISOR puede cambiar el estado.
+    (Si quieres que admin también, cambia Roles("supervisor") por Roles("admin", "supervisor"))
+    """
+    permission_classes = [IsAuthenticated, Roles("admin", "supervisor")]
+    def patch(self, request, pk):
+        try:
+            cobrador = Cobrador.objects.get(pk=pk)
+        except Cobrador.DoesNotExist:
+            raise NotFound("Cobrador no encontrado")
+        
+        if cobrador.id_cobrador == getattr(request.user, "id_cobrador", None):
+            return Response(
+                {"detail": "No puedes cambiar tu propio estado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        is_active = request.data.get("is_active", None)
+        if is_active is None:
+            return Response(
+                {"detail": "'is_active' es requerido."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if isinstance(is_active, str):
+            is_active = is_active.lower() in {"true", "1", "yes", "on", "si", "verdadero"}
+
+        cobrador.is_active = bool(is_active)
+        cobrador.save(update_fields=["is_active"])
+        return Response(
+            {
+                "id_cobrador": cobrador.id_cobrador,
+                "nombre": cobrador.nombre,
+                "apellidos": cobrador.apellidos,
+                "usuario": cobrador.usuario,
+                "email": cobrador.email,
+                "role": cobrador.role,
+                "is_active": cobrador.is_active,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # ---- Ejemplos de vistas protegidas por rol ----
