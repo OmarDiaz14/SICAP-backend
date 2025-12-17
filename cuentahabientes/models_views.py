@@ -38,3 +38,20 @@ class VistaDeudores(models.Model):
     class Meta:
         managed = False
         db_table = 'vista_deudores' 
+
+class VistaProgreso(models.Model):
+    numero_contrato = models.IntegerField()
+    nombre = models.CharField(max_length=150)
+    estatus = models.CharField(max_length=20)
+    total = models.DecimalField(max_digits=12, decimal_places=2)
+    saldo = models.DecimalField(max_digits=12, decimal_places=2)
+    progreso = models.CharField(max_length=4)
+    id_cuentahabiente = models.IntegerField(primary_key=True)
+
+    class Meta:
+        managed = False        
+        db_table = "vista_progreso"
+        ordering = ["numero_contrato"]
+
+    def __str__(self):
+        return f"{self.numero_contrato} - {self.nombre} ({self.progreso})"
