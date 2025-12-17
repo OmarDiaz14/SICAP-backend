@@ -27,7 +27,7 @@ class CuentahabienteSerializer(serializers.ModelSerializer):
 
 # cuentahabientes/serializers.py
 from rest_framework import serializers
-from .models_views import VistaPagos, VistaHistorial
+from .models_views import VistaPagos, VistaHistorial, VistaDeudores
 
 class VistaPagosSerializer(serializers.ModelSerializer):
     class Meta:
@@ -37,4 +37,9 @@ class VistaPagosSerializer(serializers.ModelSerializer):
 class VistaHistorialSerializer(serializers.ModelSerializer):
     class Meta:
         model = VistaHistorial
+        fields = "__all__"
+
+class VistaDeudoresSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VistaDeudores
         fields = "__all__"

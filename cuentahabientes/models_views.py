@@ -27,3 +27,14 @@ class VistaHistorial(models.Model):
         managed = False
         db_table = 'vista_historial'
         ordering = ['-fecha_pago', 'numero_contrato']
+
+
+class VistaDeudores(models.Model):
+    id_cuentahabiente = models.IntegerField(primary_key=True)
+    nombre_cuentahabiente = models.CharField(max_length=255)
+    monto_total = models.IntegerField()
+    estatus = models.CharField(max_length=20)
+    nombre_colonia = models.CharField(max_length=255)
+    class Meta:
+        managed = False
+        db_table = 'vista_deudores' 

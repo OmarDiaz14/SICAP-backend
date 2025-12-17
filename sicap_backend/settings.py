@@ -20,10 +20,10 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-insecure-key")
 DEBUG = _to_bool(os.environ.get("DEBUG", "0" if IS_PROD else "1"))
 
 ALLOWED_HOSTS = [
-        " .onrender.com",
+        ".onrender.com",
         "localhost",
         "sicap.duckdns.org",
-        "sicap-backend.onrender.com",
+        "127.0.0.1",
         ]
 
 # Tu dominio del front (prod). Ej: https://sicap-frontend-mbn-yvqv.vercel.app
