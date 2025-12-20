@@ -11,7 +11,7 @@ from .models_views import VistaHistorial,VistaPagos, VistaDeudores, VistaProgres
 class CuentahabienteViewSet(viewsets.ModelViewSet):
     queryset = Cuentahabiente.objects.select_related("colonia", "servicio").order_by("id_cuentahabiente")
     serializer_class = CuentahabienteSerializer
-    permission_classes = [IsAuthenticated & IsAdminSupervisorOrCobradorCreate]
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["numero_contrato", "nombres", "ap", "am", "telefono", "colonia__nombre_colonia"]
     ordering_fields = ["id_cuentahabiente", "numero_contrato", "nombres"]
