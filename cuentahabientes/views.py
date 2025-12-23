@@ -3,9 +3,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Cuentahabiente
-from .serializers import CuentahabienteSerializer, VistaPagosSerializer, VistaHistorialSerializer, VistaDeudoresSerializer, VistaProgresoSerializer
+from .serializers import CuentahabienteSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
 from cobrador.permissions import IsAdminSupervisorOrCobradorCreate
-from .models_views import VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso
+from .models_views import VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta
 
 
 class CuentahabienteViewSet(viewsets.ModelViewSet):
@@ -68,3 +68,18 @@ class VistaProgresoPublicViewSet(viewsets.ReadOnlyModelViewSet):
     # ordenar: ?ordering=numero_contrato o ?ordering=-total
     ordering_fields = ["numero_contrato", "total", "saldo", "progreso"]
     ordering = ["numero_contrato"]
+
+class EstadoCuentaViewSet(viewsets.ReadOnlyModelViewSet):
+        
+        """
+          /api/estado-cuenta/
+          /api/estado-cuenta/?numero_contrato=...
+        """
+        queryset = EstadoCuenta.objects.all()
+        serializer_class = EstadoCuentaSerializer
+        permission_classes = [IsAuthenticated&IsAdminSupervisorOrCobradorCreate]
+        filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+        filterset_fields = ["id_cuentahabiente", "anio", "deuda"]
+        search_fields = ["nombre", "direccion", "telefono", "numero_contrato"]
+        ordering_fields = ["id_cuentahabiente", "numero_contrato", "fecha_pago", "anio"]
+        ordering = ["numero_contrato", "fecha_pago"]

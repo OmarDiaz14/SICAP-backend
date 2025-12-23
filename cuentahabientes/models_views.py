@@ -55,3 +55,19 @@ class VistaProgreso(models.Model):
 
     def __str__(self):
         return f"{self.numero_contrato} - {self.nombre} ({self.progreso})"
+
+class EstadoCuenta(models.Model):
+    id_cuentahabiente = models.IntegerField(primary_key=True)
+    numero_contrato = models.IntegerField()
+    nombre = models.CharField(max_length=255)
+    direccion = models.CharField(max_length=255)
+    telefono = models.CharField(max_length=20)
+    saldo_pendiente = models.IntegerField()
+    deuda = models.CharField(max_length=20)
+    fecha_pago = models.DateField()
+    monto_recibido = models.IntegerField()
+    anio = models.IntegerField()
+
+    class Meta:
+        managed = False
+        db_table = "estado_cuenta"  
