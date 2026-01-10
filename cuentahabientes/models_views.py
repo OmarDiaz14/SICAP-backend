@@ -7,6 +7,8 @@ class VistaPagos(models.Model):
     anio = models.IntegerField()
     pagos_totales = models.DecimalField(max_digits=12, decimal_places=2)
     estatus_deuda = models.CharField(max_length=100)
+    calle = models.CharField(max_length=255)
+    saldo_pendiente = models.DecimalField(max_digits=12, decimal_places=2)
     id = models.BigIntegerField(primary_key=True)  # <- pk
 
     class Meta:
