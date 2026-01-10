@@ -73,3 +73,18 @@ class EstadoCuenta(models.Model):
     class Meta:
         managed = False
         db_table = "estado_cuenta"  
+
+class RCuentahabientes(models.Model):
+    id_cuentahabiente = models.AutoField(primary_key=True)
+    numero_contrato = models.IntegerField()
+    nombre = models.CharField(max_length=255)
+    calle = models.CharField(max_length=255)
+    nombre_colonia = models.CharField(max_length=255)
+    telefono = models.CharField(max_length=20)
+    saldo_pendiente = models.DecimalField(max_digits=12, decimal_places=2)
+    total_pagado = models.DecimalField(max_digits=12, decimal_places=2)
+    estatus = models.CharField(max_length=20)
+
+    class Meta:
+        managed = False
+        db_table = "r_cuentahabientes"

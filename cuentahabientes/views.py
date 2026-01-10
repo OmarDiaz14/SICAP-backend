@@ -3,9 +3,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Cuentahabiente
-from .serializers import CuentahabienteSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
+from .serializers import CuentahabienteSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
 from cobrador.permissions import IsAdminSupervisorOrCobradorCreate
-from .models_views import VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta
+from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta
 
 
 class CuentahabienteViewSet(viewsets.ModelViewSet):
@@ -83,3 +83,20 @@ class EstadoCuentaViewSet(viewsets.ReadOnlyModelViewSet):
         search_fields = ["nombre", "direccion", "telefono", "numero_contrato"]
         ordering_fields = ["id_cuentahabiente", "numero_contrato", "fecha_pago", "anio"]
         ordering = ["numero_contrato", "fecha_pago"]
+
+
+class RCuentahabientesViewSet(viewsets.ReadOnlyModelViewSet):  
+    """/api/r-cuentahabientes/
+    /api/r-cuentahabientes/?id_cuentahabiente=123
+    """
+     
+
+    queryset = RCuentahabientes.objects.all().order_by("id_cuentahabiente")
+    serializer_class = RCuentahabientesSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["id_cuentahabiente", "estatus", "numero_contrato", "nombre"]
+
+    search_fields = ["nombre", "calle", "nombre_colonia", "telefono", "numero_contrato"]
+    ordering_fields = ["id_cuentahabiente", "numero_contrato", "saldo_pendiente", "total_pagado"]
+    ordering = ["id_cuentahabiente"]
