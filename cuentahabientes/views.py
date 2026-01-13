@@ -2,7 +2,7 @@
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
-from django.http import status
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -130,7 +130,7 @@ class CierreAnualViewSet(viewsets.ViewSet):
                 status=status.HTTP_409_CONFLICT
             )
         
-        resumen = cambio_anio(data["tarifa_nueva"])
+        resumen = cambio_anio()
         return Response(resumen, status=status.HTTP_200_OK)
     
     def update(self, request, pk=None):
@@ -168,16 +168,17 @@ class CierreAnualViewSet(viewsets.ViewSet):
                 )
             
             for c in Cuentahabiente.objects.select_for_update():
-                deuda_actual = decimal_seguro(c.deuda)
+                tarifa = obtener_tarifa_cuentahabiente(c)
                 saldo_actual = decimal_seguro(c.saldo_pendiente)
-                tarifa = decimal_seguro(data["tarifa_nueva"])
 
-                # Actualizar deuda histórica
-                c.deuda = str(deuda_actual + tarifa)
+                nuevo_saldo = saldo_actual + tarifa
+                c.saldo_pendiente = nuevo_saldo
 
-                # Actualizar saldo a cobrar
-                c.saldo_pendiente = str(saldo_actual + tarifa)
-
+                if nuevo_saldo >= Decimal("720"):
+                    c.deuda = "adeudo"
+                else:
+                    c.deuda = "pagado"
+                    
                 c.save()
 
             return Response(
@@ -193,8 +194,12 @@ def decimal_seguro(valor):
     except (InvalidOperation, ValueError):
         return Decimal("0")
     
-def cambio_anio(tarifa_nueva):
-    tarifa = decimal_seguro(tarifa_nueva)
+def obtener_tarifa_cuentahabiente(cuentahabiente):
+    if not cuentahabiente.servicio:
+        return Decimal("0")
+    return decimal_seguro(cuentahabiente.servicio.costo)
+
+def cambio_anio():
 
     resumen = {
         "reiniciadas": 0,
@@ -202,14 +207,15 @@ def cambio_anio(tarifa_nueva):
         "cargo_total": Decimal("0.00")
     }
 
-    for c in Cuentahabiente.objects.all():
-        deuda_actual = decimal_seguro(c.deuda)
+    for c in Cuentahabiente.objects.select_related("servicio"):
+        tarifa = obtener_tarifa_cuentahabiente(c)
+        saldo_actual = decimal_seguro(c.saldo_pendiente)
 
-        if deuda_actual == 0:
+        if saldo_actual == 0:
             resumen["reiniciadas"] += 1
-            resumen["cargo_total"] += tarifa
         else:
             resumen["con_adeudo"] += 1
-            resumen["cargo_total"] += tarifa + deuda_actual
+
+        resumen["cargo_total"] += tarifa
 
     return resumen

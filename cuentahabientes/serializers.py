@@ -85,10 +85,6 @@ class RCuentahabientesSerializer(serializers.ModelSerializer):
 class CierreAnioSerializer(serializers.Serializer):
     anio_cierre = serializers.IntegerField()
     anio_nuevo = serializers.IntegerField()
-    tarifa_nueva = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2
-    )
 
 class EjecutarCierreSerializer(CierreAnioSerializer):
     confirmar = serializers.BooleanField()

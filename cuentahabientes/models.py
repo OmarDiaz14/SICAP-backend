@@ -32,7 +32,6 @@ class Cuentahabiente(models.Model):
 def __str__(self):
     return f"{self.nombres} {self.ap} {self.am}"
 
-
 class CierreAnual(models.Model):
     anio = models.IntegerField(unique=True)
     ejecutado = models.BooleanField(default=False)
