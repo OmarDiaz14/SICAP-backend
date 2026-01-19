@@ -1,4 +1,5 @@
 # cuentahabientes/views.py
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
@@ -6,6 +7,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
+
+from cargos.models import Cargo
 from .models import CierreAnual, Cuentahabiente
 from .serializers import CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
 from cobrador.permissions import IsAdminSupervisorOrCobradorCreate
@@ -168,19 +171,27 @@ class CierreAnualViewSet(viewsets.ViewSet):
                 )
             
             for c in Cuentahabiente.objects.select_for_update():
+
+                saldo_anterior = decimal_seguro(c.saldo_pendiente)
                 tarifa = obtener_tarifa_cuentahabiente(c)
-                saldo_actual = decimal_seguro(c.saldo_pendiente)
 
-                nuevo_saldo = saldo_actual + tarifa
-                c.saldo_pendiente = nuevo_saldo
+                if saldo_anterior > Decimal("0"):
+                    Cargo.objects.create(
+                        tipo_cargo="CIERRE_ANUAL",
+                        monto_cargo=saldo_anterior,
+                        fecha_cargo=date(data["anio_nuevo"], 1, 1),
+                        cuentahabiente=c
+                    )
 
-                if nuevo_saldo >= Decimal("720"):
+                c.saldo_pendiente = tarifa
+
+                if c.saldo_pendiente > Decimal("0"):
                     c.deuda = "adeudo"
                 else:
                     c.deuda = "pagado"
-                    
-                c.save()
 
+                c.save()
+                
             return Response(
             {"status": "Cierre anual ejecutado correctamente"},
             status=status.HTTP_200_OK
