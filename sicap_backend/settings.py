@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "cuentahabientes",
     "descuento",
     "pagos",
+    "pagos_cargos",
     "sector",
     "servicio",
 ]

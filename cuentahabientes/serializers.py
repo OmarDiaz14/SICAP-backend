@@ -80,3 +80,11 @@ class RCuentahabientesSerializer(serializers.ModelSerializer):
     class Meta:
         model = RCuentahabientes
         fields = '__all__'
+
+
+class CierreAnioSerializer(serializers.Serializer):
+    anio_cierre = serializers.IntegerField()
+    anio_nuevo = serializers.IntegerField()
+
+class EjecutarCierreSerializer(CierreAnioSerializer):
+    confirmar = serializers.BooleanField()

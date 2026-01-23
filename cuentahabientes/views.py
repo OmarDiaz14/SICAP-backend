@@ -1,9 +1,16 @@
 # cuentahabientes/views.py
+from datetime import date
+from decimal import Decimal, InvalidOperation
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status
+from rest_framework.response import Response
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .models import Cuentahabiente
-from .serializers import CuentahabienteSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
+
+from cargos.models import Cargo
+from .models import CierreAnual, Cuentahabiente
+from .serializers import CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
 from cobrador.permissions import IsAdminSupervisorOrCobradorCreate
 from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta
 
@@ -100,3 +107,126 @@ class RCuentahabientesViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ["nombre", "calle", "nombre_colonia", "telefono", "numero_contrato"]
     ordering_fields = ["id_cuentahabiente", "numero_contrato", "saldo_pendiente", "total_pagado"]
     ordering = ["id_cuentahabiente"]
+
+
+class CierreAnualViewSet(viewsets.ViewSet):
+    permission_classes = [
+        IsAuthenticated,
+        IsAdminSupervisorOrCobradorCreate
+    ]
+
+    def create(self, request):
+        """
+        POST /api/cierre-anual/ 
+        """
+        serializer = CierreAnioSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+
+        if CierreAnual.objects.filter(
+            anio=data["anio_nuevo"],
+            ejecutado=True
+        ).exists():
+            return Response(
+                {"error": "El cierre anual ya fue ejecutado"},
+                status=status.HTTP_409_CONFLICT
+            )
+        
+        resumen = cambio_anio()
+        return Response(resumen, status=status.HTTP_200_OK)
+    
+    def update(self, request, pk=None):
+        """
+        POST api/cierre-anual/confirmar/
+        """
+        serializer = EjecutarCierreSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+
+        if not data["confirmar"]:
+            return Response(
+                {"error": "Debe confirmar la acción"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if request.user.role not in ["admin", "supervisor"]:
+            return Response(
+                {"error": "No tiene permisos para ejecutar el cierre anual"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        with transaction.atomic():
+
+            cierre, _ = CierreAnual.objects.select_for_update().get_or_create(
+                anio=data["anio_nuevo"],
+                defaults={"ejecutado_por": request.user}
+            )
+
+            if cierre.ejecutado:
+                return Response(
+                    {"error": "El cierre fue ejecutado"},
+                    status=status.HTTP_409_CONFLICT
+                )
+            
+            for c in Cuentahabiente.objects.select_for_update():
+
+                saldo_anterior = decimal_seguro(c.saldo_pendiente)
+                tarifa = obtener_tarifa_cuentahabiente(c)
+
+                if saldo_anterior > Decimal("0"):
+                    Cargo.objects.create(
+                        tipo_cargo="CIERRE_ANUAL",
+                        monto_cargo=saldo_anterior,
+                        fecha_cargo=date(data["anio_nuevo"], 1, 1),
+                        cuentahabiente=c
+                    )
+
+                c.saldo_pendiente = tarifa
+
+                if c.saldo_pendiente > Decimal("0"):
+                    c.deuda = "adeudo"
+                else:
+                    c.deuda = "pagado"
+
+                c.save()
+                
+            return Response(
+            {"status": "Cierre anual ejecutado correctamente"},
+            status=status.HTTP_200_OK
+        )
+
+def decimal_seguro(valor):
+    try:
+        if valor in (None, "", " ", "NULL"):
+            return Decimal("0")
+        return Decimal(str(valor))
+    except (InvalidOperation, ValueError):
+        return Decimal("0")
+    
+def obtener_tarifa_cuentahabiente(cuentahabiente):
+    if not cuentahabiente.servicio:
+        return Decimal("0")
+    return decimal_seguro(cuentahabiente.servicio.costo)
+
+def cambio_anio():
+
+    resumen = {
+        "reiniciadas": 0,
+        "con_adeudo": 0,
+        "cargo_total": Decimal("0.00")
+    }
+
+    for c in Cuentahabiente.objects.select_related("servicio"):
+        tarifa = obtener_tarifa_cuentahabiente(c)
+        saldo_actual = decimal_seguro(c.saldo_pendiente)
+
+        if saldo_actual == 0:
+            resumen["reiniciadas"] += 1
+        else:
+            resumen["con_adeudo"] += 1
+
+        resumen["cargo_total"] += tarifa
+
+    return resumen

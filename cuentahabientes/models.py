@@ -1,4 +1,5 @@
 from django.db import models
+from cobrador.models import Cobrador
 from colonia.models import Colonia
 from servicio.models import Servicio
 # Create your models here.
@@ -30,3 +31,16 @@ class Cuentahabiente(models.Model):
 
 def __str__(self):
     return f"{self.nombres} {self.ap} {self.am}"
+
+class CierreAnual(models.Model):
+    anio = models.IntegerField(unique=True)
+    ejecutado = models.BooleanField(default=False)
+    fecha = models.DateField(auto_now_add=True)
+    ejecutado_por = models.ForeignKey(
+        Cobrador,
+        on_delete=models.PROTECT,
+        related_name="cierres_anuales"
+    )
+
+    class Meta:
+        db_table = "cierre_anual"

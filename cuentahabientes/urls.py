@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CuentahabienteViewSet, RCuentahabientesViewSet, VistaHistorialViewSet, VistaPagosViewSet, VistaDeudoresViewSet, VistaProgresoPublicViewSet, EstadoCuentaViewSet
+from .views import CierreAnualViewSet, CuentahabienteViewSet, RCuentahabientesViewSet, VistaHistorialViewSet, VistaPagosViewSet, VistaDeudoresViewSet, VistaProgresoPublicViewSet, EstadoCuentaViewSet
 
 
 router = DefaultRouter()
@@ -12,6 +12,7 @@ router.register(r'vista-deudores', VistaDeudoresViewSet, basename='vista-deudore
 router.register(r'vista-progreso', VistaProgresoPublicViewSet, basename='vista-progreso')
 router.register(r'estado-cuenta', EstadoCuentaViewSet, basename='estado-cuenta')
 router.register(r'r-cuentahabientes', RCuentahabientesViewSet, basename='r-cuentahabientes')
+router.register(r'cierre-anual', CierreAnualViewSet, basename='cierre-anual')
 
 urlpatterns = [ 
     path('', include(router.urls)) ,
