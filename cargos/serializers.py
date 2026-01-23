@@ -7,10 +7,10 @@ class CargoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cargo 
-        filds = ("id_cargo", "cuentahabiente", "cuentahabiente_nombre", 
-                 "tipo_cargo", "monto_cargo", "fecha_cargo")
+        fields = ("id_cargo", "cuentahabiente", "cuentahabiente_nombre", 
+                 "tipo_cargo", "monto_cargo","saldo_restante_cargo", "fecha_cargo", "activo")
         
-        read_only_fields = ("id_cargo")
+        read_only_fields = ("id_cargo",)
 
     def get_cuentahabiente_nombre(self, obj):
         ch = obj.cuentahabiente
