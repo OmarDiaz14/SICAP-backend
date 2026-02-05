@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
-from .models import Cargo
-from .serializers import CargoSerializer
+from .models import Cargo, TipoCargo
+from .serializers import CargoSerializer, TipoCargoSerializer
 from cobrador.permissions import IsAdminOrSupervisorOrReadOnly
 
 class CargoViewSet(viewsets.ModelViewSet):
@@ -13,13 +13,13 @@ class CargoViewSet(viewsets.ModelViewSet):
     search_fields = [
         "cuentahabiente__numero_contrato",
         "cuentahabiente__nombres", "cuentahabiente__ap", "cuentahabiente__am",
-        "tipo_cargo"
+        "tipo_cargo__nombre"
     ]
-    ordering_fields = ["fecha_cargo", "monto_cargo", "id_cargo"]
+    ordering_fields = ["fecha_cargo", "saldo_restante_cargo", "id_cargo"]
     ordering = ["-fecha_cargo", "-id_cargo"]
 
     def get_queryset(self):
-        queryset = Cargo.objects.select_related("cuentahabiente")
+        queryset = Cargo.objects.select_related("cuentahabiente", "tipo_cargo")
 
         cuentahabiente_id = self.request.query_params.get("cuentahabiente")
         activo = self.request.query_params.get("activo")
@@ -31,3 +31,11 @@ class CargoViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(activo=activo.lower() == "true")
 
         return queryset.order_by("-fecha_cargo", "-id_cargo")
+    
+class TipoCargoViewSet(viewsets.ModelViewSet):
+    """
+    GET /tipos-cargo/
+    """
+    queryset = TipoCargo.objects.filter(automatico=False)
+    serializer_class = TipoCargoSerializer
+    permission_classes = [IsAuthenticated & IsAdminOrSupervisorOrReadOnly]
