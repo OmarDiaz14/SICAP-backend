@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from cargos.models import Cargo
+from cargos.models import Cargo, TipoCargo
 from .models import CierreAnual, Cuentahabiente
 from .serializers import CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
 from cobrador.permissions import IsAdminSupervisorOrCobradorCreate
@@ -138,7 +138,7 @@ class CierreAnualViewSet(viewsets.ViewSet):
     
     def update(self, request, pk=None):
         """
-        POST api/cierre-anual/confirmar/
+        POST cierre-anual/confirmar/
         """
         serializer = EjecutarCierreSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -159,17 +159,25 @@ class CierreAnualViewSet(viewsets.ViewSet):
 
         with transaction.atomic():
 
-            cierre, _ = CierreAnual.objects.select_for_update().get_or_create(
+            cierre, created = CierreAnual.objects.select_for_update().get_or_create(
                 anio=data["anio_nuevo"],
                 defaults={"ejecutado_por": request.user}
             )
 
             if cierre.ejecutado:
                 return Response(
-                    {"error": "El cierre fue ejecutado"},
+                    {"error": "El cierre anual ya fue ejecutado"},
                     status=status.HTTP_409_CONFLICT
                 )
             
+            tipo_cierre, _ = TipoCargo.objects.get_or_create(
+                nombre="CIERRE_ANUAL",
+                defaults={
+                    "monto": Decimal("0.00"),
+                    "automatico": True
+                }
+            )
+
             for c in Cuentahabiente.objects.select_for_update():
 
                 saldo_anterior = decimal_seguro(c.saldo_pendiente)
@@ -177,20 +185,21 @@ class CierreAnualViewSet(viewsets.ViewSet):
 
                 if saldo_anterior > Decimal("0"):
                     Cargo.objects.create(
-                        tipo_cargo="CIERRE_ANUAL",
-                        monto_cargo=saldo_anterior,
+                        cuentahabiente=c,
+                        tipo_cargo=tipo_cierre,
+                        saldo_restante_cargo=saldo_anterior,
                         fecha_cargo=date(data["anio_nuevo"], 1, 1),
-                        cuentahabiente=c
+                        activo=True
                     )
 
                 c.saldo_pendiente = tarifa
-
-                if c.saldo_pendiente > Decimal("0"):
-                    c.deuda = "adeudo"
-                else:
-                    c.deuda = "pagado"
-
+                c.deuda = "adeudo" if tarifa > Decimal("0") else "pagado"
                 c.save()
+
+            cierre.ejecutado = True
+            cierre.fecha_ejecucion = date.today()
+            cierre.ejecutado_por = request.user
+            cierre.save()
                 
             return Response(
             {"status": "Cierre anual ejecutado correctamente"},
