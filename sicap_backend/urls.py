@@ -30,5 +30,6 @@ urlpatterns = [
     path('', include('cuentahabientes.urls')),
     path('', include('pagos.urls')),
     path('', include('cargos.urls')),
-    path('', include("pagos_cargos.urls"))
-]
+    path('', include("pagos_cargos.urls")),
+    path('api/corte/', include('corte.urls')),
+    ]
