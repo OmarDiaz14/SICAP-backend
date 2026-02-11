@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "pagos_cargos",
     "sector",
     "servicio",
+    "corte",
 ]
 
 # ---------- MIDDLEWARE ----------
@@ -215,6 +216,9 @@ LOGGING = {
         "django.server": {"handlers": ["console"], "level": LOG_LEVEL},
         "django.request": {"handlers": ["console"], "level": "WARNING" if IS_PROD else "INFO"},
         "urllib3": {"handlers": ["console"], "level": "WARNING"},
+        "django.utils.autoreload": {
+            "level": "INFO", 
+        },
     },
 }
 
