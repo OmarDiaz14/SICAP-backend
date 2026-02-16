@@ -22,8 +22,9 @@ DEBUG = _to_bool(os.environ.get("DEBUG", "0" if IS_PROD else "1"))
 ALLOWED_HOSTS = [
         ".onrender.com",
         "localhost",
-        "sicap.duckdns.org",
+        #"sicap.duckdns.org",
         "127.0.0.1",
+        "sicap-app-o2eyd.ondigitalocean.app",
         ]
 
 # Tu dominio del front (prod). Ej: https://sicap-frontend-mbn-yvqv.vercel.app
