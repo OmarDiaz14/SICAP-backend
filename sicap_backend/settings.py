@@ -102,7 +102,7 @@ DB_URL_PROD = os.environ.get("DATABASE_URL_PROD")
 CHOSEN_DB_URL = DB_URL_PROD if IS_PROD else DB_URL_DEV
 
 # Si te conectas a Render, usa ssl_require=True (o agrega ?sslmode=require en la URL)
-SSL_REQUIRE = _to_bool(os.environ.get("RENDER", "0")) and _to_bool(os.environ.get("SSL_ENABLED", "true"))
+SSL_REQUIRE = _to_bool(os.environ.get("RENDER", "0")) and _to_bool(os.environ.get("SSL_ENABLED", "false"))
 
 DATABASES = {
     "default": dj_database_url.config(
