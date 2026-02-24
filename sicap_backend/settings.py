@@ -94,36 +94,25 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ---------- DATABASE ----------
-# Dos URLs en .env: DATABASE_URL_DEV (Render u otra) y DATABASE_URL_PROD (tu server).
-DB_URL_DEV = os.environ.get("DATABASE_URL_DEV") or os.environ.get("DATABASE_URL")  # fallback por si ya usas DATABASE_URL
+# ---------- DATABASE ----------
+DB_URL_DEV = os.environ.get("DATABASE_URL_DEV") or os.environ.get("DATABASE_URL")
 DB_URL_PROD = os.environ.get("DATABASE_URL_PROD")
 
-# Elegimos según APP_ENV
 CHOSEN_DB_URL = DB_URL_PROD if IS_PROD else DB_URL_DEV
-
-# Si te conectas a Render, usa ssl_require=True (o agrega ?sslmode=require en la URL)
-SSL_REQUIRE = _to_bool(os.environ.get("RENDER", "0")) and _to_bool(os.environ.get("SSL_ENABLED", "false"))
 
 DATABASES = {
     "default": dj_database_url.config(
         default=CHOSEN_DB_URL,
         conn_max_age=600,
-        ssl_require=SSL_REQUIRE
+        ssl_require=False  # SSL se maneja desde la URL con ?sslmode=
     )
 }
 
-# Render usa proxy; respeta cabecera X-Forwarded-Proto
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Extra: si no usas ssl_require y prefieres OPTIONS:
-if os.environ.get("RENDER", "") == "true" and os.environ.get("SSL_ENABLED", "true") == "true":
-    DATABASES["default"].setdefault("OPTIONS", {})
-    DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
-
-# DB de tests solo fuera de Render
 if "RENDER" not in os.environ:
     DATABASES["default"]["TEST"] = {"NAME": "test_mi_proyecto_db"}
-
+    
 # ---------- PASSWORDS ----------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
