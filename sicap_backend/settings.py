@@ -116,7 +116,7 @@ DATABASES = {
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Extra: si no usas ssl_require y prefieres OPTIONS:
-if os.environ.get("RENDER", "") == "true":
+if os.environ.get("RENDER", "") == "true" and os.environ.get("SSL_ENABLED", "true") == "true":
     DATABASES["default"].setdefault("OPTIONS", {})
     DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
 
