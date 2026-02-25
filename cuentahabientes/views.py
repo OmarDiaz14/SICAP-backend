@@ -175,11 +175,14 @@ class CierreAnualViewSet(viewsets.ViewSet):
             )
 
             # ✅ Una sola query con select_related
-            cuentahabientes = list(
+            ids = list(
                 Cuentahabiente.objects.select_for_update()
+                .values_list("id_cuentahabiente", flat=True)
+            )
+            cuentahabientes = list(
+                Cuentahabiente.objects.filter(id_cuentahabiente__in=ids)
                 .select_related("servicio")
             )
-
             cargos_a_crear = []
             cuentas_a_actualizar = []
             fecha_cargo = date(data["anio_nuevo"], 1, 1)
