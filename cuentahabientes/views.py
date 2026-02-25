@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import action
 
 from cargos.models import Cargo, TipoCargo
 from .models import CierreAnual, Cuentahabiente
@@ -135,27 +136,29 @@ class CierreAnualViewSet(viewsets.ViewSet):
         
         resumen = cambio_anio()
         return Response(resumen, status=status.HTTP_200_OK)
-    
-    def update(self, request, pk=None):
-        """
-        POST cierre-anual/confirmar/
-        """
+
+
+
+    @action(detail=False, methods=["post"], url_path="confirmar")
+    def confirmar(self, request):
         serializer = EjecutarCierreSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        data = serializer.validated_data
+        data = serializer.validated_data    
 
+        #validar la confirmacion 
         if not data["confirmar"]:
             return Response(
-                {"error": "Debe confirmar la acción"},
+                {"error": "Confirmación requerida para ejecutar el cierre anual"},
                 status=status.HTTP_400_BAD_REQUEST
-            )
+             )
         
+        #Validar los Permisos 
         if request.user.role not in ["admin", "supervisor"]:
             return Response(
-                {"error": "No tiene permisos para ejecutar el cierre anual"},
+                {"error": "Permisos insuficientes para ejecutar el cierre anual"},
                 status=status.HTTP_403_FORBIDDEN
-            )
+             )
 
         with transaction.atomic():
 

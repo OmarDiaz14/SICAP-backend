@@ -4,7 +4,7 @@ from cobrador.models import Cobrador
 
 class CorteCaja(models.Model):
     folio_corte = models.AutoField(primary_key=True)
-    cobrador_id = models.ForeignKey(Cobrador, on_delete=models.PROTECT, related_name='cortes_realizados')
+    cobrador_id = models.ForeignKey(Cobrador, on_delete=models.PROTECT, related_name='cortes_realizados', null = True, blank=True)
 
     fecha_generacion = models.DateTimeField(auto_now_add=True)
 
