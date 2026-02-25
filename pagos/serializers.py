@@ -4,7 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 from .models import Pago
-from cuentahabientes.models import Cuentahabiente
+from cuentahabientes.models import CierreAnual, Cuentahabiente
 from descuento.models import Descuento
 
 
@@ -130,6 +130,37 @@ class PagoCreateSerializer(serializers.ModelSerializer):
         mes_num, anio_num = self._month_year_from_fecha(fecha_pago)
         mes_str = f"{mes_num:02d}"
 
+        anio_actual = timezone.localtime().year
+
+        if anio_num > anio_actual:
+            raise serializers.ValidationError(
+                "No se permiten pagos con fecha en el futuro."
+            )
+
+        cierre_siguiente_ejecutado = CierreAnual.objects.filter(
+            anio=anio_num + 1,
+            ejecutado=True
+        ).exists()
+
+        if cierre_siguiente_ejecutado:
+            raise serializers.ValidationError(
+                f"El año {anio_num} ya fue cerrado. "
+                "Debe liquidar el adeudo como cargo."
+            )
+
+        # Bloquear pagos si no se ha ejecutado el cierre anual
+        if anio_num == anio_actual:
+            cierre_ejecutado = CierreAnual.objects.filter(
+                anio=anio_actual,
+                ejecutado=True
+            ).exists()
+
+            if not cierre_ejecutado:
+                raise serializers.ValidationError(
+                    f"No se pueden registrar pagos del año {anio_actual} "
+                    "sin haber ejecutado el cierre anual."
+                )
+
         monto_recibido = Decimal(validated_data["monto_recibido"])
         descuento_obj = validated_data.get("descuento")
         comentarios = validated_data.pop("comentarios", None)
@@ -141,10 +172,13 @@ class PagoCreateSerializer(serializers.ModelSerializer):
 
         total_a_restar = monto_recibido + monto_descuento
         saldo_actual = Decimal(str(ch_locked.saldo_pendiente or 0))
+        if total_a_restar > saldo_actual:
+            raise serializers.ValidationError(
+                "No se permite sobrepago."
+            )
+
         nuevo_saldo_decimal = saldo_actual - total_a_restar
         nuevo_saldo = int(nuevo_saldo_decimal.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-        if nuevo_saldo < 0:
-            nuevo_saldo = 0
 
         ch_locked.saldo_pendiente = nuevo_saldo
         nuevo_estatus = self.calcular_estatus_deuda(ch_locked, referencia_dt=fecha_pago)
