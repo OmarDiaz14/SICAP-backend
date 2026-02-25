@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import action
 
 from cargos.models import Cargo, TipoCargo
 from .models import CierreAnual, Cuentahabiente
