@@ -60,6 +60,12 @@ class PagoCreateSerializer(serializers.ModelSerializer):
     # ---- Validación de coherencia ----
     def validate(self, attrs):
         fecha_pago = attrs.get("fecha_pago")
+        monto = attrs.get("monto_recibido")
+        if monto is not None and Decimal(monto) <= Decimal("0.00"):
+            raise serializers.ValidationError({
+                "monto_recibido": "El monto debe ser mayor a 0."
+            })
+        
         if fecha_pago is not None:
             m, y = self._month_year_from_fecha(fecha_pago)
             mes = attrs.get("mes")
