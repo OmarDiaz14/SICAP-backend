@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 
 from cargos.models import Cargo, TipoCargo
+from pagos.models import Pago
 from .models import CierreAnual, Cuentahabiente
 from .serializers import CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
 from cobrador.permissions import IsAdminSupervisorOrCobradorCreate
@@ -118,11 +119,11 @@ class CierreAnualViewSet(viewsets.ViewSet):
 
     def create(self, request):
         """
-        POST /api/cierre-anual/ 
+        POST /cierre-anual/
+        Devuelve un resumen previo sin ejecutar el cierre.
         """
         serializer = CierreAnioSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         data = serializer.validated_data
 
         if CierreAnual.objects.filter(
@@ -133,14 +134,16 @@ class CierreAnualViewSet(viewsets.ViewSet):
                 {"error": "El cierre anual ya fue ejecutado"},
                 status=status.HTTP_409_CONFLICT
             )
-        
-        resumen = cambio_anio()
+
+        resumen = cambio_anio(data["anio_nuevo"])
         return Response(resumen, status=status.HTTP_200_OK)
-
-
 
     @action(detail=False, methods=["post"], url_path="confirmar")
     def confirmar(self, request):
+        """
+        POST /cierre-anual/confirmar/
+        Ejecuta el cierre anual definitivo.
+        """
         serializer = EjecutarCierreSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -157,9 +160,14 @@ class CierreAnualViewSet(viewsets.ViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        anio_cierre = data["anio_cierre"]  # ej: 2025
+        anio_nuevo  = data["anio_nuevo"]   # ej: 2026
+
         with transaction.atomic():
+
+            # ── Verificar y crear registro de cierre ─────────────────────
             cierre, created = CierreAnual.objects.select_for_update().get_or_create(
-                anio=data["anio_nuevo"],
+                anio=anio_nuevo,
                 defaults={"ejecutado_por": request.user}
             )
 
@@ -169,12 +177,13 @@ class CierreAnualViewSet(viewsets.ViewSet):
                     status=status.HTTP_409_CONFLICT
                 )
 
+            # ── Tipo de cargo para cierre anual ──────────────────────────
             tipo_cierre, _ = TipoCargo.objects.get_or_create(
                 nombre="CIERRE_ANUAL",
                 defaults={"monto": Decimal("0.00"), "automatico": True}
             )
 
-            # ✅ Una sola query con select_related
+            # ── Bloquear y cargar cuentahabientes ────────────────────────
             ids = list(
                 Cuentahabiente.objects.select_for_update()
                 .values_list("id_cuentahabiente", flat=True)
@@ -183,14 +192,46 @@ class CierreAnualViewSet(viewsets.ViewSet):
                 Cuentahabiente.objects.filter(id_cuentahabiente__in=ids)
                 .select_related("servicio")
             )
-            cargos_a_crear = []
+
+            # ── Pagos anticipados del nuevo año (más reciente primero) ───
+            pagos_nuevo_anio = list(
+                Pago.objects.filter(anio=anio_nuevo)
+                .select_related("descuento")
+                .order_by("cuentahabiente_id", "-fecha_pago")
+            )
+
+            # Sumar monto_recibido por cuentahabiente
+            # (monto_recibido ya viene con el descuento aplicado)
+            pagos_por_cuenta = {}
+            for p in pagos_nuevo_anio:
+                cid = p.cuentahabiente_id
+                pagos_por_cuenta[cid] = (
+                    pagos_por_cuenta.get(cid, Decimal("0")) +
+                    decimal_seguro(p.monto_recibido)
+                )
+
+            # Descuento del pago más reciente con descuento activo
+            descuento_por_cuenta = {}
+            for p in pagos_nuevo_anio:
+                cid = p.cuentahabiente_id
+                if cid not in descuento_por_cuenta:
+                    if p.descuento_id and p.descuento and p.descuento.activo:
+                        descuento_por_cuenta[cid] = decimal_seguro(p.descuento.porcentaje)
+
+            # ── Procesar cada cuentahabiente ─────────────────────────────
+            cargos_a_crear       = []
             cuentas_a_actualizar = []
-            fecha_cargo = date(data["anio_nuevo"], 1, 1)
+            fecha_cargo = date(anio_nuevo, 1, 1)
 
             for c in cuentahabientes:
                 saldo_anterior = decimal_seguro(c.saldo_pendiente)
-                tarifa = obtener_tarifa_cuentahabiente(c)
+                tarifa_base    = obtener_tarifa_cuentahabiente(c)
 
+                # Tarifa real = base - descuento fijo (si tiene)
+                descuento_fijo = descuento_por_cuenta.get(c.id_cuentahabiente, Decimal("0"))
+                tarifa_real    = tarifa_base - descuento_fijo
+
+                # Cargo de cierre: deuda del año que cierra
                 if saldo_anterior > Decimal("0"):
                     cargos_a_crear.append(
                         Cargo(
@@ -202,11 +243,23 @@ class CierreAnualViewSet(viewsets.ViewSet):
                         )
                     )
 
-                c.saldo_pendiente = tarifa
-                c.deuda = "adeudo" if tarifa > Decimal("0") else "pagado"
+                # Nuevo saldo = tarifa real - pagos anticipados
+                pagos_anticipados = pagos_por_cuenta.get(c.id_cuentahabiente, Decimal("0"))
+                nuevo_saldo       = tarifa_real - pagos_anticipados
+
+                # Estado de deuda
+                if nuevo_saldo <= Decimal("0"):
+                    estado_deuda = "pagado"
+                elif pagos_anticipados > Decimal("0") and nuevo_saldo < tarifa_real:
+                    estado_deuda = "corriente"
+                else:
+                    estado_deuda = "adeudo"
+
+                c.saldo_pendiente = nuevo_saldo
+                c.deuda           = estado_deuda
                 cuentas_a_actualizar.append(c)
 
-            # ✅ Inserts y updates en lote, no uno por uno
+            # ── Guardar en lote ──────────────────────────────────────────
             if cargos_a_crear:
                 Cargo.objects.bulk_create(cargos_a_crear, batch_size=500)
 
@@ -216,15 +269,27 @@ class CierreAnualViewSet(viewsets.ViewSet):
                 batch_size=500
             )
 
-            cierre.ejecutado = True
-            cierre.fecha = date.today()
+            # ── Marcar cierre como ejecutado ─────────────────────────────
+            cierre.ejecutado     = True
+            cierre.fecha         = date.today()
             cierre.ejecutado_por = request.user
             cierre.save()
 
             return Response(
-                {"status": "Cierre anual ejecutado correctamente"},
+                {
+                    "status": "Cierre anual ejecutado correctamente",
+                    "anio_cerrado": anio_cierre,
+                    "anio_nuevo": anio_nuevo,
+                    "cuentas_procesadas": len(cuentas_a_actualizar),
+                    "cargos_generados": len(cargos_a_crear),
+                    "cuentas_con_pagos_anticipados": len(pagos_por_cuenta),
+                },
                 status=status.HTTP_200_OK
             )
+
+
+# ── Funciones auxiliares ─────────────────────────────────────────────────────
+
 def decimal_seguro(valor):
     try:
         if valor in (None, "", " ", "NULL"):
@@ -232,22 +297,33 @@ def decimal_seguro(valor):
         return Decimal(str(valor))
     except (InvalidOperation, ValueError):
         return Decimal("0")
-    
+
+
 def obtener_tarifa_cuentahabiente(cuentahabiente):
     if not cuentahabiente.servicio:
         return Decimal("0")
     return decimal_seguro(cuentahabiente.servicio.costo)
 
-def cambio_anio():
 
+def cambio_anio(anio_nuevo):
+    """
+    Devuelve un resumen previo del cierre sin ejecutar nada.
+    """
     resumen = {
         "reiniciadas": 0,
         "con_adeudo": 0,
-        "cargo_total": Decimal("0.00")
+        "cargo_total": Decimal("0.00"),
+        "cuentas_con_pagos_anticipados": 0,
     }
 
+    pagos_anticipados_ids = set(
+        Pago.objects.filter(anio=anio_nuevo)
+        .values_list("cuentahabiente_id", flat=True)
+        .distinct()
+    )
+
     for c in Cuentahabiente.objects.select_related("servicio"):
-        tarifa = obtener_tarifa_cuentahabiente(c)
+        tarifa       = obtener_tarifa_cuentahabiente(c)
         saldo_actual = decimal_seguro(c.saldo_pendiente)
 
         if saldo_actual == 0:
@@ -256,5 +332,8 @@ def cambio_anio():
             resumen["con_adeudo"] += 1
 
         resumen["cargo_total"] += tarifa
+
+        if c.id_cuentahabiente in pagos_anticipados_ids:
+            resumen["cuentas_con_pagos_anticipados"] += 1
 
     return resumen
