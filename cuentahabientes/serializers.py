@@ -23,8 +23,21 @@ class CuentahabienteSerializer(serializers.ModelSerializer):
             "saldo_pendiente",    # <- lo calculamos; solo lectura al crear
             "es_toma_nueva",
         )
-        read_only_fields = ("id_cuentahabiente", "saldo_pendiente", "numero_contrato")
+        read_only_fields = ("id_cuentahabiente", "saldo_pendiente")
 
+    def validate_numero_contrato(self, value):
+        qs = Cuentahabiente.objects.filter(numero_contrato=value)
+
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
+            raise serializers.ValidationError(
+                "Ya existe un cuentahabiente con ese número de contrato."
+            )
+
+        return value
+    
     def create(self, validated_data):
         """
         Al crear, establece saldo_pendiente = costo del servicio seleccionado.
