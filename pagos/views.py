@@ -37,7 +37,7 @@ class PagoViewSet(viewsets.ModelViewSet):
 
         if Cargo.objects.filter(
             cuentahabiente=cuentahabiente,
-            activo=True 
+            saldo_restante_cargo__gt= 0
         ).exists():
             return Response(
                 {
