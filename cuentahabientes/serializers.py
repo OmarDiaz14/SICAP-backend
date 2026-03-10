@@ -10,6 +10,7 @@ from .models import Cuentahabiente
 
 class CuentahabienteSerializer(serializers.ModelSerializer):
     
+    numero_contrato = serializers.IntegerField(required=False)
     es_toma_nueva = serializers.BooleanField(write_only=True, required=False, default=False)
     class Meta:
 
@@ -26,6 +27,16 @@ class CuentahabienteSerializer(serializers.ModelSerializer):
         read_only_fields = ("id_cuentahabiente", "saldo_pendiente")
 
     def validate_numero_contrato(self, value):
+
+        if value is None:
+            return value
+
+        # Evitar que el numero de contrato sea negativo
+        if value <= 0:
+            raise serializers.ValidationError(
+                "El número de contrato no puede ser negativo"
+            )
+        
         qs = Cuentahabiente.objects.filter(numero_contrato=value)
 
         if self.instance:
