@@ -176,14 +176,24 @@ class PagoCreateSerializer(serializers.ModelSerializer):
         if descuento_obj:
             monto_descuento = Decimal(str(descuento_obj.porcentaje))
 
-        total_a_restar = monto_recibido + monto_descuento
+        # Pago real a regsitrar
+        pago_real = monto_recibido - monto_descuento
+        
+        if pago_real <= 0:
+            raise serializers.ValidationError(
+                "El descuento no puede ser mayor que el monto recibido"
+            )
+        
+        total_cubierto = pago_real + monto_descuento
+
         saldo_actual = Decimal(str(ch_locked.saldo_pendiente or 0))
-        if total_a_restar > saldo_actual:
+
+        if total_cubierto > saldo_actual:
             raise serializers.ValidationError(
                 "No se permite sobrepago."
             )
-
-        nuevo_saldo_decimal = saldo_actual - total_a_restar
+        
+        nuevo_saldo_decimal = saldo_actual - total_cubierto
         nuevo_saldo = int(nuevo_saldo_decimal.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
         ch_locked.saldo_pendiente = nuevo_saldo
@@ -199,7 +209,7 @@ class PagoCreateSerializer(serializers.ModelSerializer):
             cobrador=cobrador,
             cuentahabiente=ch_locked,
             fecha_pago=fecha_pago,
-            monto_recibido=int(monto_recibido),
+            monto_recibido=int(pago_real),
             monto_descuento=monto_descuento_int,
             mes=mes_str,
             anio=anio_num,
