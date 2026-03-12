@@ -184,17 +184,15 @@ class PagoCreateSerializer(serializers.ModelSerializer):
                 "El descuento no puede ser mayor que el monto recibido"
             )
         
-        total_cubierto = pago_real + monto_descuento
-
         saldo_actual = Decimal(str(ch_locked.saldo_pendiente or 0))
 
-        if total_cubierto > saldo_actual:
+        if monto_recibido > saldo_actual:
             raise serializers.ValidationError(
                 "No se permite sobrepago."
             )
         
-        nuevo_saldo_decimal = saldo_actual - total_cubierto
-        nuevo_saldo = int(nuevo_saldo_decimal.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        nuevo_saldo = saldo_actual - monto_recibido
+        nuevo_saldo = int(nuevo_saldo.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
         ch_locked.saldo_pendiente = nuevo_saldo
         nuevo_estatus = self.calcular_estatus_deuda(ch_locked, referencia_dt=fecha_pago)
@@ -210,7 +208,7 @@ class PagoCreateSerializer(serializers.ModelSerializer):
             cuentahabiente=ch_locked,
             fecha_pago=fecha_pago,
             monto_recibido=int(pago_real),
-            monto_descuento=monto_descuento_int,
+            monto_descuento=int(monto_descuento),
             mes=mes_str,
             anio=anio_num,
             comentarios=comentarios,
