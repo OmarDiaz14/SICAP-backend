@@ -1,4 +1,19 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+
+# ─── Roles del sistema ────────────────────────────────────────────────────────
+ROLE_ADMIN        = "admin"
+ROLE_PRESIDENTE   = "presidente"
+ROLE_COBRADOR     = "cobrador"
+ROLE_SECRETARIO   = "secretario"
+ROLE_TESORERO_JR  = "tesorero_jr"
+ROLE_TESORERO_SR  = "tesorero_sr"
+
+# Grupos reutilizables
+ROLES_DIRECTIVOS  = {ROLE_ADMIN, ROLE_PRESIDENTE}                                     # admin + presidente
+ROLES_TESORERIA   = {ROLE_ADMIN, ROLE_PRESIDENTE, ROLE_TESORERO_SR, ROLE_TESORERO_JR} # acceso financiero
+ROLES_OPERATIVOS  = {ROLE_ADMIN, ROLE_PRESIDENTE, ROLE_COBRADOR}                      # operaciones de cobro
+ROLES_TODOS       = {ROLE_ADMIN, ROLE_PRESIDENTE, ROLE_COBRADOR,ROLE_SECRETARIO, ROLE_TESORERO_JR, ROLE_TESORERO_SR}  
+
 class HasAnyRole(BasePermission):
     """Permiso genérico: deja pasar si el usuario tiene alguno de los roles requeridos."""
     roles = ()
@@ -19,11 +34,12 @@ def Roles(*roles: str):
     _P.__name__ = f"Roles_{'_'.join(roles) or 'Any'}"
     return _P
 
-
-class IsAdminOrSupervisorOrReadOnly(BasePermission):
+# ─── Permisos compuestos ───────────────────────────────────────────────────────
+class IsDirectivoOrReadOnly(BasePermission):
     """
-    - Lectura (GET/HEAD/OPTIONS): requiere estar autenticado.
-    - Escritura (POST/PUT/PATCH/DELETE): solo 'admin' o 'supervisor'.
+    Antes: IsAdminOrSupervisorOrReadOnly
+    - Lectura  (GET/HEAD/OPTIONS): cualquier autenticado.
+    - Escritura (POST/PUT/PATCH/DELETE): solo admin o presidente.
     """
     def has_permission(self, request, view):
         u = getattr(request, "user", None)
@@ -32,13 +48,15 @@ class IsAdminOrSupervisorOrReadOnly(BasePermission):
             return is_auth
         if not is_auth:
             return False
-        return getattr(u, "role", None) in {"admin", "supervisor"}
-    
-class IsAdminSupervisorOrCobradorCreate(BasePermission):
+        return getattr(u, "role", None) in ROLES_DIRECTIVOS
+
+
+class IsDirectivoOrCobradorCreate(BasePermission):
     """
-    - GET/HEAD/OPTIONS: requiere estar autenticado (cualquier rol).
-    - POST: permitido a admin, supervisor y cobrador.
-    - PUT/PATCH/DELETE: solo admin o supervisor.
+    Antes: IsAdminSupervisorOrCobradorCreate
+    - GET/HEAD/OPTIONS : cualquier autenticado.
+    - POST             : admin, presidente o cobrador.
+    - PUT/PATCH/DELETE : solo admin o presidente.
     """
     def has_permission(self, request, view):
         u = getattr(request, "user", None)
@@ -48,15 +66,15 @@ class IsAdminSupervisorOrCobradorCreate(BasePermission):
         if not is_auth:
             return False
         if request.method == "POST":
-            return getattr(u, "role", None) in {"admin", "supervisor", "cobrador"}
-        return getattr(u, "role", None) in {"admin", "supervisor"}
-    
+            return getattr(u, "role", None) in ROLES_OPERATIVOS
+        return getattr(u, "role", None) in ROLES_DIRECTIVOS
+
 
 class IsAdminOnlyWriteExceptPost(BasePermission):
     """
-    - GET/HEAD/OPTIONS: requiere estar autenticado (cualquier rol).
-    - POST: permitido a admin, supervisor y cobrador.
-    - PUT/PATCH/DELETE: solo admin.
+    - GET/HEAD/OPTIONS : cualquier autenticado.
+    - POST             : admin, presidente o cobrador.
+    - PUT/PATCH/DELETE : solo admin.
     """
     def has_permission(self, request, view):
         u = getattr(request, "user", None)
@@ -66,5 +84,5 @@ class IsAdminOnlyWriteExceptPost(BasePermission):
         if not is_auth:
             return False
         if request.method == "POST":
-            return getattr(u, "role", None) in {"admin", "supervisor", "cobrador"}
-        return getattr(u, "role", None) == "admin"
+            return getattr(u, "role", None) in ROLES_OPERATIVOS
+        return getattr(u, "role", None) == ROLE_ADMIN
