@@ -2,13 +2,13 @@ from rest_framework import viewsets, filters
 from  rest_framework.permissions import IsAuthenticated
 from .models import Sector
 from .serializers import SectorSerializer
-from cobrador.permissions import IsAdminOrSupervisorOrReadOnly
+from cobrador.permissions import IsDirectivoOrReadOnly
 
 
 class SectorViewSet(viewsets.ModelViewSet):
     queryset = Sector.objects.all().order_by('id_sector')
     serializer_class = SectorSerializer
-    permission_classes = [IsAuthenticated & IsAdminOrSupervisorOrReadOnly]
+    permission_classes = [IsAuthenticated & IsDirectivoOrReadOnly]
 
 
     #busquedas y ordenamientos 

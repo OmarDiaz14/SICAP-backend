@@ -3,12 +3,12 @@ from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from .models import Cargo, TipoCargo
 from .serializers import CargoSerializer, TipoCargoSerializer
-from cobrador.permissions import IsAdminOrSupervisorOrReadOnly
+from cobrador.permissions import IsDirectivoOrReadOnly
 
 class CargoViewSet(viewsets.ModelViewSet):
     #queryset = Cargo.objects.select_related("cuentahabiente").order_by("-fecha_cargo","-id_cargo")
     serializer_class = CargoSerializer
-    permission_classes = [IsAuthenticated & IsAdminOrSupervisorOrReadOnly]
+    permission_classes = [IsAuthenticated & IsDirectivoOrReadOnly]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = [
         "cuentahabiente__numero_contrato",
@@ -38,4 +38,4 @@ class TipoCargoViewSet(viewsets.ModelViewSet):
     """
     queryset = TipoCargo.objects.filter(automatico=False)
     serializer_class = TipoCargoSerializer
-    permission_classes = [IsAuthenticated & IsAdminOrSupervisorOrReadOnly]
+    permission_classes = [IsAuthenticated & IsDirectivoOrReadOnly]

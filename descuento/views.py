@@ -3,7 +3,7 @@ from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from .models import Descuento
 from .serializers import DescuentoSerializer
-from cobrador.permissions import IsAdminOrSupervisorOrReadOnly
+from cobrador.permissions import IsDirectivoOrReadOnly
 
 
 class DescuentoViewSet(viewsets.ModelViewSet):
@@ -11,7 +11,7 @@ class DescuentoViewSet(viewsets.ModelViewSet):
     serializer_class = DescuentoSerializer
 
     #lectura: requiere login; escritura: solo admin o supervisor
-    permission_classes = [IsAuthenticated & IsAdminOrSupervisorOrReadOnly]
+    permission_classes = [IsAuthenticated & IsDirectivoOrReadOnly]
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre_descuento']

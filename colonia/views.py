@@ -2,12 +2,12 @@ from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from .models import Colonia
 from .serializers import ColoniaSerializer  
-from .permissions import IsAdminOrSupervisorOrReadOnly
+from .permissions import IsDirectivoOrReadOnly
 
 class ColoniaViewSet(viewsets.ModelViewSet):
     queryset = Colonia.objects.all().order_by('id_colonia')
     serializer_class = ColoniaSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrSupervisorOrReadOnly]
+    permission_classes = [IsAuthenticated, IsDirectivoOrReadOnly]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre_colonia']
     ordering_fields = ['id_colonia', 'nombre_colonia', 'codigo_postal']
