@@ -24,11 +24,14 @@ class SignupView(APIView):
                         status=status.HTTP_201_CREATED)
 
 class AdminCreateUserView(APIView):
-    """Crear usuarios con cualquier rol (solo ADMIN)."""
-    permission_classes = [Roles("admin")]
+    """Crear usuarios con cualquier rol (Admin y Presidente permitidos)."""
+    permission_classes = [Roles("admin", "presidente")]  # ← ambos roles acceden
 
     def post(self, request):
-        ser = AdminCreateUserSerializer(data=request.data)
+        ser = AdminCreateUserSerializer(
+            data=request.data,
+            context={"request": request}  # ← necesario para leer request.user en el serializer
+        )
         ser.is_valid(raise_exception=True)
         user = ser.save()
         return Response({"cobrador": CobradorPublicSerializer(user).data}, status=201)
