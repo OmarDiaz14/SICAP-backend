@@ -1,4 +1,5 @@
 from django.db import models
+from calles.models import Calle
 from cobrador.models import Cobrador
 from colonia.models import Colonia
 from servicio.models import Servicio
@@ -17,7 +18,8 @@ class Cuentahabiente(models.Model):
     nombres = models.CharField(max_length=25)
     ap = models.CharField(max_length=50) # apellido paterno
     am = models.CharField(max_length=50) # apellido materno
-    calle = models.CharField(max_length=256)
+    calle = models.CharField(max_length=256, null=True, blank=True)
+    calle_fk = models.ForeignKey(Calle, on_delete=models.PROTECT, null=True, blank=True)
     numero = models.IntegerField()
     telefono = models.CharField(max_length=20)
     colonia = models.ForeignKey(Colonia, on_delete=models.PROTECT)

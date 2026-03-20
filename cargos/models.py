@@ -17,6 +17,7 @@ class Cargo(models.Model):
     tipo_cargo = models.ForeignKey(TipoCargo, on_delete=models.PROTECT, related_name="cargos")
     saldo_restante_cargo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
     fecha_cargo = models.DateField()
+    descripcion = models.CharField(max_length=256, null=True, blank=True)
     activo = models.BooleanField(default=True)
 
     def save(self, *args, **kwargs):

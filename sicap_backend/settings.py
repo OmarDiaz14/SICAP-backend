@@ -43,15 +43,15 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     # apps
-    "asignaciones",
+    "calles",
     "cargos",
     "cobrador",
     "colonia",
     "cuentahabientes",
     "descuento",
+    "equipos",
     "pagos",
     "pagos_cargos",
-    "sector",
     "servicio",
     "corte",
 ]
