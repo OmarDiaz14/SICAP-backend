@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class AsignacionesConfig(AppConfig):
+class CallesConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'asignaciones'
+    name = 'calles'
