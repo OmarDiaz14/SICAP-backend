@@ -2,7 +2,7 @@ from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from .models import Colonia
 from .serializers import ColoniaSerializer  
-from .permissions import IsDirectivoOrReadOnly
+from cobrador.permissions import IsDirectivoOrReadOnly 
 
 class ColoniaViewSet(viewsets.ModelViewSet):
     queryset = Colonia.objects.all().order_by('id_colonia')
