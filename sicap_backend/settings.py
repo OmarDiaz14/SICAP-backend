@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "pagos",
     "pagos_cargos",
     "servicio",
+    "tesoreria",
     "corte",
 ]
 

@@ -1,6 +1,7 @@
 import os
 from django.db import models
 from cobrador.models import Cobrador
+from equipos.models import Equipo
 
 #### Corte de Caja Principal (Tesorero Sr) ####
 class CorteCaja(models.Model):
@@ -79,7 +80,7 @@ class CorteCajaJr(models.Model):
         null=True,
         blank=True,
         related_name="cortes_jr_validados",
-        limit_choices_to={"role": Cobrador.ROLE_TESORERO_JR},
+        limit_choices_to={"role": Cobrador.ROLE_TESORERO_SR},
     )
 
     def __str__(self):
@@ -127,14 +128,14 @@ class CorteCajaSr(models.Model):
         limit_choices_to={"role": Cobrador.ROLE_TESORERO_JR},
     )
 
-    """  equipo = models.ForeignKey(
+    equipo = models.ForeignKey(
         Equipo,
         on_delete=models.PROTECT,
         related_name="cortes_sr",
         null=True,
         blank=True,
     )
-    """
+    
 
     pdf = models.FileField(
         upload_to=upload_corte_sr_pdf,
