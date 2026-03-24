@@ -1,4 +1,5 @@
 import json
+from django.conf import settings
 from django.db import connection, DatabaseError
 from django.utils import timezone
 from rest_framework.views import APIView
@@ -15,8 +16,14 @@ from .serializers import (CorteSerializer
                           , SubirPdfCorteJrSerializer, CorteCajaSrSerializer,
                           SubirPdfCorteSrSerializer)
 from .models import CorteCajaJr, CorteCajaSr
+from equipos.models import Equipo
 from cobrador.permissions import Roles
 
+
+
+### pdf consultar 
+import boto3
+from botocore.config import Config
 
 """
 class CorteView(APIView):
@@ -471,3 +478,69 @@ class CorteCajaSrDetalleView(APIView):
             )
 
         return Response(CorteCajaSrSerializer(corte).data)
+    
+
+
+
+
+#### cosultar pdf 
+def generar_url_firmada(ruta_pdf: str, expiracion: int = 3600) -> str:
+    """
+    Genera una URL temporal para ver el PDF.
+    expiracion: segundos que dura la URL (default 1 hora)
+    """
+    s3_client = boto3.client(
+        "s3",
+        endpoint_url       = "https://nyc3.digitaloceanspaces.com",
+        aws_access_key_id  = settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key = settings.AWS_SECRET_ACCESS_KEY,
+        config             = Config(signature_version="s3v4"),
+    )
+
+    url = s3_client.generate_presigned_url(
+        "get_object",
+        Params={
+            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+            "Key":    ruta_pdf,
+        },
+        ExpiresIn=expiracion,
+    )
+    return url
+
+
+class CorteCajaJrPdfView(APIView):
+    """
+    GET /corte/jr/<folio>/ver-pdf/
+    Devuelve una URL temporal para ver el PDF.
+    """
+    permission_classes = [
+        permissions.IsAuthenticated,
+        Roles("tesorero_jr", "tesorero_sr", "admin", "presidente"),
+    ]
+
+    def get(self, request, folio):
+        try:
+            corte = CorteCajaJr.objects.get(folio_corte=folio)
+        except CorteCajaJr.DoesNotExist:
+            return Response({"detail": "Corte no encontrado."}, status=404)
+
+        if not corte.pdf:
+            return Response(
+                {"detail": "Este corte no tiene PDF subido."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Tesorero Jr solo puede ver sus propios cortes
+        if request.user.role == "tesorero_jr" and corte.cobrador != request.user:
+            return Response(
+                {"detail": "No tienes permiso para ver este PDF."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        url = generar_url_firmada(corte.pdf.name)
+
+        return Response({
+            "folio_corte": folio,
+            "pdf_url":     url,
+            "expira_en":   "1 hora",
+        })
