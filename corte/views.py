@@ -13,7 +13,7 @@ from .serializers import (CorteSerializer
                           , SubirPdfCorteJrSerializer, CorteCajaSrSerializer,
                           SubirPdfCorteSrSerializer)
 from .models import CorteCajaJr, CorteCajaSr
-from equipo.models import Equipo
+from equipos.models import Equipo
 from cobrador.permissions import Roles
 
 
