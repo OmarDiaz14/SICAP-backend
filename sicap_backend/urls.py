@@ -32,4 +32,5 @@ urlpatterns = [
     path('', include('cargos.urls')),
     path('', include("pagos_cargos.urls")),
     path('api/corte/', include('corte.urls')),
+    path('api/tesoreria/', include('tesoreria.urls')),
     ]

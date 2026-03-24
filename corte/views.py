@@ -6,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated 
 from rest_framework import status, permissions
 
+from equipos.models import Equipo
+
 # Asegúrate de importar tu modelo correctamente
 #from cobrador.models import Cobrador 
 from .serializers import (CorteSerializer
@@ -13,7 +15,6 @@ from .serializers import (CorteSerializer
                           , SubirPdfCorteJrSerializer, CorteCajaSrSerializer,
                           SubirPdfCorteSrSerializer)
 from .models import CorteCajaJr, CorteCajaSr
-from equipo.models import Equipo
 from cobrador.permissions import Roles
 
 
