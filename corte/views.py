@@ -544,3 +544,40 @@ class CorteCajaJrPdfView(APIView):
             "pdf_url":     url,
             "expira_en":   "1 hora",
         })
+
+class CorteCajaSrPdfView(APIView):
+    """
+    GET /corte/sr/<folio>/ver-pdf/
+    Tesorero Sr: solo sus propios cortes.
+    Admin / Presidente: cualquier corte.
+    """
+    permission_classes = [
+        permissions.IsAuthenticated,
+        Roles("tesorero_sr", "admin", "presidente"),
+    ]
+
+    def get(self, request, folio):
+        try:
+            corte = CorteCajaSr.objects.get(folio_corte=folio)
+        except CorteCajaSr.DoesNotExist:
+            return Response({"detail": "Corte no encontrado."}, status=404)
+
+        if not corte.pdf:
+            return Response(
+                {"detail": "Este corte no tiene PDF subido."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if request.user.role == "tesorero_sr" and corte.tesorero_sr != request.user:
+            return Response(
+                {"detail": "No tienes permiso para ver este PDF."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        url = generar_url_firmada(corte.pdf.name)
+
+        return Response({
+            "folio_corte": folio,
+            "pdf_url":     url,
+            "expira_en":   "1 hora",
+        })
