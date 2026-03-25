@@ -7,3 +7,4 @@ from .permissions import IsDirectivoOrReadOnly
 class CalleViewSet(viewsets.ModelViewSet):
     serializer_class = CalleSerializer
     permission_classes = [IsAuthenticated, IsDirectivoOrReadOnly]
+    queryset = Calle.objects.all()
