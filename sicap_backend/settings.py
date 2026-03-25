@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import dj_database_url
+import environ
 
 load_dotenv()
 
@@ -42,17 +43,19 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
     "django_filters",
+    "storages",
     # apps
-    "asignaciones",
+    "calles",
     "cargos",
     "cobrador",
     "colonia",
     "cuentahabientes",
     "descuento",
+    "equipos",
     "pagos",
     "pagos_cargos",
-    "sector",
     "servicio",
+    "tesoreria",
     "corte",
 ]
 
@@ -211,8 +214,15 @@ LOGGING = {
         },
     },
 }
+env = environ.Env()
+environ.Env.read_env()
+# ─── DigitalOcean Spaces ──────────────────────────────────────────────────────
+AWS_ACCESS_KEY_ID       = env("DO_SPACES_KEY")
+AWS_SECRET_ACCESS_KEY   = env("DO_SPACES_SECRET")
+AWS_STORAGE_BUCKET_NAME = env("DO_SPACES_BUCKET")           # sicap-pdfs
+AWS_S3_ENDPOINT_URL     = "https://sfo3.digitaloceanspaces.com"  # ← sin bucket
+AWS_S3_FILE_OVERWRITE   = False
+AWS_DEFAULT_ACL         = "private"
 
-# ---------- WHATSAPP API (Meta) ----------
-WHATSAPP_API_BASE_URL = os.environ.get("WHATSAPP_API_BASE_URL", "https://graph.facebook.com/v21.0")
-WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
-WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
+DEFAULT_FILE_STORAGE    = "storages.backends.s3boto3.S3Boto3Storage"
+MEDIA_URL               = "https://sicap-pdfs.sfo3.digitaloceanspaces.com/"

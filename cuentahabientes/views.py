@@ -13,7 +13,7 @@ from cargos.models import Cargo, TipoCargo
 from pagos.models import Pago
 from .models import CierreAnual, Cuentahabiente
 from .serializers import CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
-from cobrador.permissions import IsAdminSupervisorOrCobradorCreate
+from cobrador.permissions import IsDirectivoOrCobradorCreate
 from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta
 
 
@@ -86,7 +86,7 @@ class EstadoCuentaViewSet(viewsets.ReadOnlyModelViewSet):
         """
         queryset = EstadoCuenta.objects.all()
         serializer_class = EstadoCuentaSerializer
-        permission_classes = [IsAuthenticated&IsAdminSupervisorOrCobradorCreate]
+        permission_classes = [IsAuthenticated&IsDirectivoOrCobradorCreate]
         filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
         filterset_fields = ["id_cuentahabiente", "anio", "deuda"]
         search_fields = ["nombre", "direccion", "telefono", "numero_contrato"]
@@ -114,7 +114,7 @@ class RCuentahabientesViewSet(viewsets.ReadOnlyModelViewSet):
 class CierreAnualViewSet(viewsets.ViewSet):
     permission_classes = [
         IsAuthenticated,
-        IsAdminSupervisorOrCobradorCreate
+        IsDirectivoOrCobradorCreate
     ]
 
     def create(self, request):

@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class SectorConfig(AppConfig):
+class TesoreriaConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'sector'
+    name = 'tesoreria'

@@ -21,15 +21,16 @@ from django.urls import include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', include('calles.urls')),
     path('', include('cobrador.urls')),
     path('', include('colonia.urls')),
-    path('', include('sector.urls')),
     path('', include('descuento.urls')),
-    path('', include('asignaciones.urls')),
     path('', include('servicio.urls')),
     path('', include('cuentahabientes.urls')),
+    path('', include('equipos.urls')),
     path('', include('pagos.urls')),
     path('', include('cargos.urls')),
     path('', include("pagos_cargos.urls")),
     path('api/corte/', include('corte.urls')),
+    path('api/tesoreria/', include('tesoreria.urls')),
     ]
