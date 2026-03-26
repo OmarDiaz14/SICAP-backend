@@ -401,6 +401,7 @@ class ValidarCorteSrView(APIView):
     PATCH /corte/sr/<folio>/validar/
     El Tesorero Sr valida su propio corte.
     Requiere tener el PDF subido primero.
+    Solo al validar se registra el ingreso en transacciones.
     """
     permission_classes = [permissions.IsAuthenticated, Roles("tesorero_sr")]
 
@@ -432,6 +433,33 @@ class ValidarCorteSrView(APIView):
         corte.fecha_validacion = timezone.now()
         corte.validado_por     = request.user
         corte.save(update_fields=["validado", "fecha_validacion", "validado_por_id"])
+
+        # ── Insertar en transacciones solo al validar ─────────────────────────
+        from tesoreria.models import Transaccion, Cuenta
+        try:
+            cuenta = Cuenta.objects.get(id=1)
+        except Cuenta.DoesNotExist:
+            return Response(
+                {"detail": "No existe una cuenta configurada."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        comprobante_url = ''
+        if corte.pdf:
+            try:
+                comprobante_url = generar_url_firmada(corte.pdf.name)
+            except Exception:
+                comprobante_url = ''
+
+        Transaccion.objects.create(
+            cuenta        = cuenta,
+            tipo          = 'ingreso',
+            monto         = corte.gran_total,
+            fecha         = corte.fecha_generacion,
+            observaciones = f'Corte Sr #{folio}',
+            comprobante   = corte.pdf.name if corte.pdf else '',
+            requisitor    = None,
+        )
 
         return Response(CorteCajaSrSerializer(corte).data)
 

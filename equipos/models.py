@@ -26,6 +26,8 @@ class EquipoCobrador(models.Model):
     equipo = models.ForeignKey(Equipo, on_delete=models.CASCADE, related_name='miembros')
     cobrador = models.ForeignKey(Cobrador, on_delete=models.PROTECT, related_name='equipo_asignado')
     fecha_ingreso = models.DateField()
+    fecha_salida  = models.DateField(null=True, blank=True)
+    activo = models.BooleanField(default=True)  
 
     class Meta:
         constraints = [
