@@ -69,14 +69,14 @@ class VistaProgresoPublicViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
     # filtros por query param ?estatus=...&progreso=...&numero_contrato=...
-    filterset_fields = ["estatus", "progreso", "numero_contrato"]
+    filterset_fields = ["estatus", "progreso", "numero_contrato", "anio_pago"]
 
     # búsqueda por nombre o contrato: ?search=juan
     search_fields = ["nombre", "numero_contrato"]
 
     # ordenar: ?ordering=numero_contrato o ?ordering=-total
-    ordering_fields = ["numero_contrato", "total", "saldo", "progreso"]
-    ordering = ["numero_contrato"]
+    ordering_fields = ["numero_contrato", "total", "saldo", "progreso", "anio_pago"]
+    ordering = ["numero_contrato", "anio_pago"]
 
 class EstadoCuentaViewSet(viewsets.ReadOnlyModelViewSet):
         

@@ -45,6 +45,7 @@ class VistaProgreso(models.Model):
     numero_contrato = models.IntegerField()
     nombre = models.CharField(max_length=150)
     estatus = models.CharField(max_length=20)
+    anio = models.IntegerField()
     total = models.DecimalField(max_digits=12, decimal_places=2)
     saldo = models.DecimalField(max_digits=12, decimal_places=2)
     progreso = models.CharField(max_length=4)
