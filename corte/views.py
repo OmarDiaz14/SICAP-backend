@@ -7,7 +7,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 
 # Asegúrate de importar tu modelo correctamente
-#from cobrador.models import Cobrador 
+from cobrador.models import Cobrador 
 from .serializers import CorteSerializer
 
 
@@ -77,6 +77,55 @@ class CorteView(APIView):
             return json.loads(raw_data)
         return raw_data or {}
         """
+
+class CorteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = CorteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
+
+        try:
+            # Tomamos el cobrador_id directamente del body del request
+            cobrador_id = datos['cobrador_id']
+
+            # Verificamos que ese cobrador exista
+            if not Cobrador.objects.filter(id_cobrador=cobrador_id).exists():
+                return Response(
+                    {"error": f"El cobrador con id '{cobrador_id}' no existe."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            resultado_json = self._ejecutar_funcion_corte_db(
+                cobrador_id=cobrador_id,
+                fecha_inicio=datos['fecha_inicio'],
+                fecha_fin=datos['fecha_fin']
+            )
+
+            return Response(resultado_json, status=status.HTTP_200_OK)
+
+        except DatabaseError as e:
+            print(f"Error DB: {str(e)}")
+            return Response(
+                {"error": "Error interno de base de datos al generar el corte."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def _ejecutar_funcion_corte_db(self, cobrador_id, fecha_inicio, fecha_fin):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT corte_caja(%s, %s, %s);",
+                [fecha_inicio, fecha_fin, cobrador_id]
+            )
+            raw_data = cursor.fetchone()[0]
+
+        if isinstance(raw_data, str):
+            return json.loads(raw_data)
+        return raw_data or {}
+
+
+"""
 class CorteView(APIView):
     # Seguimos protegiendo la ruta: solo usuarios logueados pueden pedir el corte
     permission_classes = [IsAuthenticated] 
@@ -109,7 +158,7 @@ class CorteView(APIView):
             )
 
     def _ejecutar_funcion_corte_db(self, fecha_inicio, fecha_fin, cobrador_id):
-        """ Se usa la funcion SQL almacenada y asegura el retorno del JSON """
+        # Se usa la funcion SQL almacenada y asegura el retorno del JSON 
         with connection.cursor() as cursor:
             cursor.execute(
                 "SELECT corte_caja(%s, %s, %s);",
@@ -120,3 +169,5 @@ class CorteView(APIView):
         if isinstance(raw_data, str):
             return json.loads(raw_data)
         return raw_data or {}
+
+""" 
