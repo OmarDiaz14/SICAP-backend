@@ -62,7 +62,7 @@ class CobradorListView(generics.ListAPIView):
     - Por defecto muestra usuarios con role='cobrador'.
     """
     serializer_class = CobradorPublicSerializer
-    permission_classes = [IsAuthenticated & Roles("admin", "supervisor")]
+    permission_classes = [IsAuthenticated ]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["nombre", "apellidos", "usuario", "email"]
     ordering_fields = ["nombre", "apellidos", "usuario", "id_cobrador"]
@@ -87,7 +87,7 @@ class CobradorEstadoView(APIView):
     Solo SUPERVISOR puede cambiar el estado.
     (Si quieres que admin también, cambia Roles("supervisor") por Roles("admin", "supervisor"))
     """
-    permission_classes = [IsAuthenticated, Roles("admin", "supervisor")]
+    permission_classes = [IsAuthenticated, Roles("presidente, admin")]
     def patch(self, request, pk):
         try:
             cobrador = Cobrador.objects.get(pk=pk)
