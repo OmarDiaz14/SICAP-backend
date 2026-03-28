@@ -121,6 +121,7 @@ class VistaProgresoSerializer(serializers.ModelSerializer):
             "numero_contrato",
             "nombre",
             "estatus",
+            "anio_pago",
             "total",
             "saldo",
             "progreso",
