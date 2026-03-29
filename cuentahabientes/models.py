@@ -18,7 +18,7 @@ class Cuentahabiente(models.Model):
     ap = models.CharField(max_length=50) # apellido paterno
     am = models.CharField(max_length=50) # apellido materno
     calle = models.CharField(max_length=256)
-    numero = models.IntegerField()
+    numero = models.CharField(max_length=10, null=True, blank=True)
     telefono = models.CharField(max_length=20)
     colonia = models.ForeignKey(Colonia, on_delete=models.PROTECT)
     servicio = models.ForeignKey(Servicio, on_delete=models.PROTECT, null=True, blank=True)
