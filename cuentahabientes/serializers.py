@@ -17,7 +17,7 @@ class CuentahabienteSerializer(serializers.ModelSerializer):
         model = Cuentahabiente
         fields = (
             "id_cuentahabiente", "numero_contrato", "nombres", "ap", "am",
-            "calle", "numero", "telefono",
+            "calle", "calle_fk", "numero", "telefono",
             "colonia",
             "servicio",           # <- el cliente elige el servicio (ID)
             "deuda",
