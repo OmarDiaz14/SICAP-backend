@@ -95,7 +95,7 @@ class CuentahabienteSerializer(serializers.ModelSerializer):
 from rest_framework import serializers
 from .models_views import (VistaPagos,VistaHistorial,
                             VistaDeudores, VistaProgreso,
-                            EstadoCuenta, RCuentahabientes
+                            EstadoCuenta, RCuentahabientes, EstadoCuentaResumen
 )
 class VistaPagosSerializer(serializers.ModelSerializer):
     class Meta:
@@ -137,10 +137,22 @@ class EstadoCuentaSerializer(serializers.ModelSerializer):
             "direccion",
             "telefono",
             "saldo_pendiente",
-            "deuda",
             "fecha_pago",
             "monto_recibido",
             "anio",
+            "tipo_movimiento",
+        ]
+
+class EstadoCuentaResumenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EstadoCuentaResumen
+        fields = [
+            "id_cuentahabiente",
+            "numero_contrato",
+            "anio",
+            "nombre_servicio",
+            "estatus",
+            "saldo_pendiente",
         ]
 
 class RCuentahabientesSerializer(serializers.ModelSerializer):
