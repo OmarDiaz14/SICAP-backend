@@ -13,7 +13,7 @@ from cargos.models import Cargo, TipoCargo
 from pagos.models import Pago
 from .models import CierreAnual, Cuentahabiente
 from .serializers import CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer, EstadoCuentaResumenSerializer
-from cobrador.permissions import IsAdminSupervisorOrCobradorCreate
+from cobrador.permissions import IsDirectivoOrCobradorCreate
 from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta, EstadoCuentaResumen
 
 
@@ -99,7 +99,7 @@ class EstadoCuentaResumenViewSet(viewsets.ReadOnlyModelViewSet):
     /api/estado-cuenta-resumen/?numero_contrato=123
     """
     serializer_class = EstadoCuentaResumenSerializer
-    permission_classes = [IsAuthenticated & IsAdminSupervisorOrCobradorCreate]
+    permission_classes = [IsAuthenticated & IsDirectivoOrCobradorCreate ]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["id_cuentahabiente", "numero_contrato"]
 
