@@ -1,11 +1,12 @@
 from django.db import models
+from django.forms import ValidationError
 from calles.models import Calle
 from cobrador.models import Cobrador
 
 # Create your models here.
 class Equipo(models.Model):
     id_equipo = models.AutoField(primary_key=True)
-    nombre_equipo = models.CharField(max_length=100)
+    nombre_equipo = models.CharField(max_length=100, unique=True)
     calle = models.ForeignKey(Calle, on_delete=models.PROTECT, related_name='equipos')
     fecha_asignacion = models.DateField()
     fecha_termino = models.DateField(null=True, blank=True)
@@ -37,3 +38,23 @@ class EquipoCobrador(models.Model):
             )
         ]
         verbose_name = "Miembro de Equipo"
+
+    def clean(self):
+        """Un cobrador no puede estar en más de un equipo activo al mismo tiempo"""
+
+        qs = EquipoCobrador.objects.filter(
+            cobrador=self.cobrador,
+            activo=True
+        )
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+
+        if qs.exists():
+            equipo_actual = qs.first().equipo.nombre_equipo
+            raise ValidationError(
+                {"cobrador": f"Este cobrador ya pertenece al equipo activo '{equipo_actual}'."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

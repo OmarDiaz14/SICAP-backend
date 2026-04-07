@@ -1,3 +1,5 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -18,6 +20,13 @@ class EquipoViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(activo=activo.lower() == 'true')
         return queryset
 
+    def handle_exception(self, exc):
+        if isinstance(exc, DjangoValidationError):
+            raise DRFValidationError(
+                exc.message_dict if hasattr(exc, 'message_dict') else exc.messages
+            )
+        return super().handle_exception(exc)
+    
     def perform_destroy(self, instance):
         # Se desactiva y se registra fecha_termino
         from django.utils import timezone

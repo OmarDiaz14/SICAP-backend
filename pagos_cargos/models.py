@@ -9,7 +9,7 @@ class PagoCargos(models.Model):
     cargo = models.ForeignKey(Cargo, on_delete=models.PROTECT, null=True, blank=True)
     cobrador = models.ForeignKey(Cobrador, on_delete=models.PROTECT)
     monto_recibido = models.DecimalField(max_digits=10, decimal_places=2)
-    fecha_pago = models.DateField(auto_now_add=True)
+    fecha_pago = models.DateField()
     comentarios = models.TextField(null=True, blank=True)
 
     class Meta:

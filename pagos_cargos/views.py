@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.db import transaction
 from django.db.models import Sum
+from django.utils import timezone
 from cargos.models import Cargo
 from pagos_cargos.models import PagoCargos
 from pagos_cargos.serializers import PagarCargoSerializer
@@ -23,6 +24,7 @@ class PagarCargoView(APIView):
         monto = data["monto"]
         cuentahabiente_id = data["cuentahabiente_id"]
         comentarios = data.get("comentarios", "")
+        fecha_pago = data.get("fecha_pago", timezone.localtime().date())
 
         cargos = Cargo.objects.filter(
             cuentahabiente_id=cuentahabiente_id,
@@ -75,14 +77,16 @@ class PagarCargoView(APIView):
                     cargo=cargo,
                     cobrador=cobrador,
                     monto_recibido=monto_aplicado,
-                    comentarios=comentarios
+                    comentarios=comentarios,
+                    fecha_pago = fecha_pago,
                 )
 
                 aplicaciones.append({
                     "pago_id": pago.id_pago,
                     "cargo_id": cargo.id_cargo,
                     "monto_aplicado": str(monto_aplicado),
-                    "pago_completo": pago_completo
+                    "pago_completo": pago_completo,
+                    "fecha_pago": str(fecha_pago),
                 })
 
             saldo_restante = Cargo.objects.filter(
@@ -95,6 +99,7 @@ class PagarCargoView(APIView):
         return Response({
             "status": "Pago aplicado correctamente",
             "monto_entregado": str(monto),
+            "fecha_pago": str(fecha_pago),
             "aplicaciones": aplicaciones,
             "saldo_restante_cargo": str(saldo_restante)
         }, status=status.HTTP_200_OK)

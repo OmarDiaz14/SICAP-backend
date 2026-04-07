@@ -11,4 +11,9 @@ class TransaccionSerializer(serializers.ModelSerializer):
         model = Transaccion
         fields = '__all__'
 
-        
+    def validate(self, attrs):
+        if attrs.get('tipo') == 'egreso' and not attrs.get('requisitor'):
+            raise serializers.ValidationError(
+                {"requisitor": "El requisitor es obligatorio para un egreso."}
+            )
+        return attrs
