@@ -1,5 +1,5 @@
+from django.utils import timezone
 from rest_framework import serializers
-
 from cargos.models import Cargo
 
 class PagarCargoSerializer(serializers.Serializer):
@@ -13,6 +13,15 @@ class PagarCargoSerializer(serializers.Serializer):
         required=False,
         allow_blank=True
     )
+    fecha_pago = serializers.DateField(required=False)
+
+    def validate_fecha_pago(self, value):
+        hoy = timezone.localtime().date()
+        if value > hoy:
+            raise serializers.ValidationError(
+                "No se puede registrar un pago con fecha futura."
+            )
+        return value
 
 class CargoSerializer(serializers.ModelSerializer):
     class Meta:
