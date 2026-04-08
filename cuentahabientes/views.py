@@ -12,9 +12,9 @@ from rest_framework.decorators import action
 from cargos.models import Cargo, TipoCargo
 from pagos.models import Pago
 from .models import CierreAnual, Cuentahabiente
-from .serializers import CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
+from .serializers import CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer, EstadoCuentaResumenSerializer
 from cobrador.permissions import IsDirectivoOrCobradorCreate
-from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta
+from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta, EstadoCuentaResumen
 
 
 class CuentahabienteViewSet(viewsets.ModelViewSet):
@@ -88,10 +88,30 @@ class EstadoCuentaViewSet(viewsets.ReadOnlyModelViewSet):
         serializer_class = EstadoCuentaSerializer
         permission_classes = [IsAuthenticated&IsDirectivoOrCobradorCreate]
         filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-        filterset_fields = ["id_cuentahabiente", "anio", "deuda"]
+        filterset_fields = ["id_cuentahabiente", "anio", "tipo_movimiento"]
         search_fields = ["nombre", "direccion", "telefono", "numero_contrato"]
         ordering_fields = ["id_cuentahabiente", "numero_contrato", "fecha_pago", "anio"]
-        ordering = ["numero_contrato", "fecha_pago"]
+        ordering = ["numero_contrato","anio",  "fecha_pago"]
+
+class EstadoCuentaResumenViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    /api/estado-cuenta-resumen/?id_cuentahabiente=1
+    /api/estado-cuenta-resumen/?numero_contrato=123
+    """
+    serializer_class = EstadoCuentaResumenSerializer
+    permission_classes = [IsAuthenticated & IsDirectivoOrCobradorCreate ]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["id_cuentahabiente", "numero_contrato"]
+
+    def get_queryset(self):
+        id_cuentahabiente = self.request.query_params.get("id_cuentahabiente")
+        numero_contrato   = self.request.query_params.get("numero_contrato")
+
+        if not id_cuentahabiente and not numero_contrato:
+            return EstadoCuentaResumen.objects.none()  # evita traer toda la tabla
+
+        return EstadoCuentaResumen.objects.all()
+
 
 
 class RCuentahabientesViewSet(viewsets.ReadOnlyModelViewSet):  

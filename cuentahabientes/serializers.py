@@ -57,21 +57,21 @@ class CuentahabienteSerializer(serializers.ModelSerializer):
 
         es_toma_nueva = validated_data.pop("es_toma_nueva", False)
 
-        ultimo = (
+        # Generar numero de contrato a partir del 2000
+        ultimo_existente = set(
             Cuentahabiente.objects
             .filter(numero_contrato__gte=2000)
-            .aggregate(max_num=Max("numero_contrato"))
-        )["max_num"]
+            .values_list("numero_contrato", flat=True)
+        )
 
-        if ultimo:
-            nuevo_numero = ultimo + 1
-        else:
-            nuevo_numero = 2000
+        nuevo_numero = 2000
+        while nuevo_numero in ultimo_existente:
+            nuevo_numero += 1
 
         validated_data["numero_contrato"] = nuevo_numero
 
-        srv = validated_data["servicio"]         # instancia de Servicio (por FK)
-        validated_data["saldo_pendiente"] = srv.costo  # Decimal exacto
+        srv = validated_data["servicio"]
+        validated_data["saldo_pendiente"] = srv.costo
 
         cuentahabiente = super().create(validated_data)
 
@@ -95,7 +95,7 @@ class CuentahabienteSerializer(serializers.ModelSerializer):
 from rest_framework import serializers
 from .models_views import (VistaPagos,VistaHistorial,
                             VistaDeudores, VistaProgreso,
-                            EstadoCuenta, RCuentahabientes
+                            EstadoCuenta, RCuentahabientes, EstadoCuentaResumen
 )
 class VistaPagosSerializer(serializers.ModelSerializer):
     class Meta:
@@ -137,10 +137,22 @@ class EstadoCuentaSerializer(serializers.ModelSerializer):
             "direccion",
             "telefono",
             "saldo_pendiente",
-            "deuda",
             "fecha_pago",
             "monto_recibido",
             "anio",
+            "tipo_movimiento",
+        ]
+
+class EstadoCuentaResumenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EstadoCuentaResumen
+        fields = [
+            "id_cuentahabiente",
+            "numero_contrato",
+            "anio",
+            "nombre_servicio",
+            "estatus",
+            "saldo_pendiente",
         ]
 
 class RCuentahabientesSerializer(serializers.ModelSerializer):

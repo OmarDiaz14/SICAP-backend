@@ -66,15 +66,27 @@ class EstadoCuenta(models.Model):
     direccion = models.CharField(max_length=255)
     telefono = models.CharField(max_length=20)
     saldo_pendiente = models.IntegerField()
-    deuda = models.CharField(max_length=20)
-    fecha_pago = models.DateField()
+    fecha_pago = models.DateField(null = True)
     monto_recibido = models.IntegerField()
     anio = models.IntegerField()
+    tipo_movimiento = models.CharField(max_length=50)  # "pago" o "cargo"
 
     class Meta:
         managed = False
         db_table = "estado_cuenta"  
 
+class EstadoCuentaResumen(models.Model):
+    id                = models.BigIntegerField(primary_key=True)
+    id_cuentahabiente = models.IntegerField()
+    numero_contrato   = models.IntegerField()
+    anio              = models.IntegerField()
+    nombre_servicio   = models.CharField(max_length=255, null=True)
+    estatus           = models.CharField(max_length=20)   # 'Pagado' | 'Corriente' | 'Adeudo' | 'Sin servicio'
+    saldo_pendiente   = models.DecimalField(max_digits=10, decimal_places=2, null=True)
+
+    class Meta:
+        managed = False
+        db_table = "estado_cuenta_resumen"
 class RCuentahabientes(models.Model):
     id_cuentahabiente = models.AutoField(primary_key=True)
     numero_contrato = models.IntegerField()

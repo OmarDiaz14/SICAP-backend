@@ -1,4 +1,5 @@
 from django.db import models
+from django.forms import ValidationError
 
 class Cuenta(models.Model):
     nombre = models.CharField(max_length=100)
@@ -24,6 +25,16 @@ class Transaccion(models.Model):
     comprobante = models.URLField(max_length=200)
     requisitor = models.CharField(max_length=150, null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if self.tipo == 'egreso' and not self.requisitor:
+            raise ValidationError(
+                {"requisitor": "El requisitor es obligatorio."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'transacciones'
