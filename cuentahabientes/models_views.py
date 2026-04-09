@@ -22,6 +22,7 @@ class VistaHistorial(models.Model):
     monto_recibido = models.DecimalField(max_digits=12, decimal_places=2)
     mes = models.CharField(max_length=20)
     anio = models.IntegerField()
+    cobrador = models.CharField(max_length=301, null=True, blank=True)
     nombre_descuento = models.CharField(max_length=150, null=True, blank=True)
     comentarios = models.TextField(null=True, blank=True)
 

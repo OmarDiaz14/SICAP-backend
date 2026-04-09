@@ -41,7 +41,7 @@ class VistaHistorialViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = VistaHistorialSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["anio", "mes", "numero_contrato", "fecha_pago"]
-    search_fields = ["numero_contrato"]
+    search_fields = ["numero_contrato", "cobrador"]
     ordering_fields = ["fecha_pago", "anio", "numero_contrato"]
 
 class VistaDeudoresViewSet(viewsets.ReadOnlyModelViewSet):
