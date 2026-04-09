@@ -102,15 +102,15 @@ class CorteView(APIView):
         datos = serializer.validated_data
 
         try:
-            # Tomamos el cobrador_id directamente del body del request
-            cobrador_id = datos['cobrador_id']
+            cobrador_id = datos.get('cobrador_id')  # None si no viene en el request
 
-            # Verificamos que ese cobrador exista
-            if not Cobrador.objects.filter(id_cobrador=cobrador_id).exists():
-                return Response(
-                    {"error": f"El cobrador con id '{cobrador_id}' no existe."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            # Solo validamos existencia si sí se mandó un cobrador
+            if cobrador_id is not None:
+                if not Cobrador.objects.filter(id_cobrador=cobrador_id).exists():
+                    return Response(
+                        {"error": f"El cobrador con id '{cobrador_id}' no existe."},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
 
             resultado_json = self._ejecutar_funcion_corte_db(
                 cobrador_id=cobrador_id,
@@ -131,15 +131,13 @@ class CorteView(APIView):
         with connection.cursor() as cursor:
             cursor.execute(
                 "SELECT corte_caja(%s, %s, %s);",
-                [fecha_inicio, fecha_fin, cobrador_id]
+                [fecha_inicio, fecha_fin, cobrador_id]  # cobrador_id puede ser None → NULL en SQL
             )
             raw_data = cursor.fetchone()[0]
 
         if isinstance(raw_data, str):
             return json.loads(raw_data)
         return raw_data or {}
-
-
 """
 class CorteView(APIView):
     # Seguimos protegiendo la ruta: solo usuarios logueados pueden pedir el corte
