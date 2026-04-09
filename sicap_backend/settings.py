@@ -217,12 +217,13 @@ LOGGING = {
 env = environ.Env()
 environ.Env.read_env()
 # ─── DigitalOcean Spaces ──────────────────────────────────────────────────────
-AWS_ACCESS_KEY_ID       = env("DO_SPACES_KEY")
-AWS_SECRET_ACCESS_KEY   = env("DO_SPACES_SECRET")
-AWS_STORAGE_BUCKET_NAME = env("DO_SPACES_BUCKET")           # sicap-pdfs
-AWS_S3_ENDPOINT_URL     = "https://sfo3.digitaloceanspaces.com"  # ← sin bucket
+
+AWS_ACCESS_KEY_ID       = os.environ.get("DO_SPACES_KEY", "")
+AWS_SECRET_ACCESS_KEY   = os.environ.get("DO_SPACES_SECRET", "")
+AWS_STORAGE_BUCKET_NAME = os.environ.get("DO_SPACES_BUCKET", "")
+AWS_S3_ENDPOINT_URL     = "https://sfo3.digitaloceanspaces.com"
 AWS_S3_FILE_OVERWRITE   = False
 AWS_DEFAULT_ACL         = "private"
 
-DEFAULT_FILE_STORAGE    = "storages.backends.s3boto3.S3Boto3Storage"
-MEDIA_URL               = "https://sicap-pdfs.sfo3.digitaloceanspaces.com/"
+DEFAULT_FILE_STORAGE     = "storages.backends.s3boto3.S3Boto3Storage"
+MEDIA_URL                = "https://sicap-pdfs.sfo3.digitaloceanspaces.com/"
