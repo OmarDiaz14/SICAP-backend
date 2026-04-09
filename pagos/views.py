@@ -32,7 +32,7 @@ class PagoViewSet(viewsets.ModelViewSet):
         ser = self.get_serializer(data=request.data, context={"request": request})
         ser.is_valid(raise_exception=True)
         
-        # bloquear pago de tarifa con cargos pendientes
+        """# bloquear pago de tarifa con cargos pendientes
         cuentahabiente = ser.validated_data["cuentahabiente"]
 
         if Cargo.objects.filter(
@@ -45,7 +45,7 @@ class PagoViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+        """
         with transaction.atomic():
             pago = ser.save()
 
