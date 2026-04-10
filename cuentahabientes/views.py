@@ -15,10 +15,10 @@ from .models import CierreAnual, Cuentahabiente
 from .serializers import (
     CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, 
     VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer,
-      VistaProgresoSerializer, EstadoCuentaSerializer, EstadoCuentaResumenSerializer, VistaCargosSerializer)
+      VistaProgresoSerializer, EstadoCuentaSerializer, EstadoCuentaResumenSerializer, VistaCargosSerializer, EstadoCuentaNewSerializer)
 
 from cobrador.permissions import IsDirectivoOrCobradorCreate
-from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta, EstadoCuentaResumen, VistaCargos
+from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta, EstadoCuentaResumen, VistaCargos, EstadoCuentaNew
 
 
 class CuentahabienteViewSet(viewsets.ModelViewSet):
@@ -380,3 +380,14 @@ def cambio_anio(anio_nuevo):
             resumen["cuentas_con_pagos_anticipados"] += 1
 
     return resumen
+
+class EstadoCuentaNewViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class   = EstadoCuentaNewSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields   = ["id_cuentahabiente", "anio", "deuda_actualizada",
+                          "tipo_movimiento", "id_cobrador"]
+    ordering_fields    = ["anio", "numero_contrato", "saldo_pendiente_actualizado"]
+
+    def get_queryset(self):
+        return EstadoCuentaNew.objects.all()
