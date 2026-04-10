@@ -12,9 +12,13 @@ from rest_framework.decorators import action
 from cargos.models import Cargo, TipoCargo
 from pagos.models import Pago
 from .models import CierreAnual, Cuentahabiente
-from .serializers import CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer, EstadoCuentaResumenSerializer
+from .serializers import (
+    CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, 
+    VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer,
+      VistaProgresoSerializer, EstadoCuentaSerializer, EstadoCuentaResumenSerializer, VistaCargosSerializer)
+
 from cobrador.permissions import IsDirectivoOrCobradorCreate
-from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta, EstadoCuentaResumen
+from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta, EstadoCuentaResumen, VistaCargos
 
 
 class CuentahabienteViewSet(viewsets.ModelViewSet):
@@ -92,6 +96,25 @@ class EstadoCuentaViewSet(viewsets.ReadOnlyModelViewSet):
         search_fields = ["nombre", "direccion", "telefono", "numero_contrato"]
         ordering_fields = ["id_cuentahabiente", "numero_contrato", "fecha_pago", "anio"]
         ordering = ["numero_contrato","anio",  "fecha_pago"]
+
+class VistaCargosViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Endpoint de solo lectura para vista_cargos.
+
+    Filtros disponibles:
+      ?cuentahabiente_id=1
+      ?cargo_activo=true
+      ?anio_cargo=2024
+    """
+
+    serializer_class   = VistaCargosSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields   = ["cuentahabiente_id", "cargo_activo", "anio_cargo"]
+    ordering_fields    = ["cargo_fecha", "saldo_restante_cargo"]
+
+    def get_queryset(self):
+        return VistaCargos.objects.all()
 
 class EstadoCuentaResumenViewSet(viewsets.ReadOnlyModelViewSet):
     """
