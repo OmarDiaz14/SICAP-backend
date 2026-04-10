@@ -10,10 +10,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # 1. Eliminar la vista que bloquea el cambio
+        # 1. Eliminar las vistas que bloquean el cambio
         migrations.RunSQL(
             sql="DROP VIEW IF EXISTS estado_cuenta;",
-            reverse_sql=""  # no es necesario revertirla aquí
+            reverse_sql=""
+        ),
+        migrations.RunSQL(
+            sql="DROP VIEW IF EXISTS estado_cuenta_test;",
+            reverse_sql=""
         ),
 
         # 2. Alterar el campo
@@ -23,23 +27,81 @@ class Migration(migrations.Migration):
             field=models.CharField(max_length=10, null=True, blank=True),
         ),
 
-        # 3. Volver a crear la vista con el tipo ya cambiado
+        # 3. Recrear la vista completa con tipo_movimiento
         migrations.RunSQL(
             sql="""
                 CREATE OR REPLACE VIEW public.estado_cuenta
-                AS SELECT c.id_cuentahabiente,
+                AS WITH anios_operativos AS (
+                         SELECT DISTINCT pagos_pago.anio
+                           FROM pagos_pago
+                        UNION
+                         SELECT EXTRACT(year FROM CURRENT_DATE)::integer AS "extract"
+                        UNION
+                         SELECT (EXTRACT(year FROM cargos_cargo.fecha_cargo) - 1::numeric)::integer AS int4
+                           FROM cargos_cargo
+                          WHERE cargos_cargo.tipo_cargo_id = 1 AND cargos_cargo.fecha_cargo IS NOT NULL
+                        ), universo_cuentahabientes AS (
+                         SELECT c_1.id_cuentahabiente,
+                            c_1.servicio_id,
+                            a.anio
+                           FROM cuentahabientes_cuentahabiente c_1
+                             CROSS JOIN anios_operativos a
+                        ), pagos_agrupados AS (
+                         SELECT p.cuentahabiente_id,
+                            p.anio,
+                            sum(COALESCE(p.monto_recibido, 0)) AS pagos_totales,
+                            sum(COALESCE(p.monto_recibido, 0)::numeric + COALESCE(d.porcentaje, 0::numeric)) AS pagos_acreditados
+                           FROM pagos_pago p
+                             LEFT JOIN descuento_descuento d ON p.descuento_id = d.id_descuento
+                          GROUP BY p.cuentahabiente_id, p.anio
+                        ), pagos_cargos_agrupados AS (
+                         SELECT c_1.cuentahabiente_id,
+                            (EXTRACT(year FROM c_1.fecha_cargo) - 1::numeric)::integer AS anio_deuda,
+                            sum(COALESCE(pc.monto_recibido, 0::numeric)) AS pagos_cargo_totales
+                           FROM cargos_cargo c_1
+                             JOIN pagos_cargos pc ON c_1.id_cargo = pc.cargo_id
+                          WHERE c_1.tipo_cargo_id = 1
+                          GROUP BY c_1.cuentahabiente_id, (EXTRACT(year FROM c_1.fecha_cargo))
+                        ), saldos_calculados AS (
+                         SELECT uc.id_cuentahabiente,
+                            uc.anio,
+                            GREATEST(COALESCE(s.costo, 0::numeric) - (COALESCE(pa.pagos_acreditados, 0::numeric) + COALESCE(pca.pagos_cargo_totales, 0::numeric)), 0::numeric) AS saldo_dinamico
+                           FROM universo_cuentahabientes uc
+                             LEFT JOIN servicio s ON uc.servicio_id = s.id_tipo_servicio
+                             LEFT JOIN pagos_agrupados pa ON uc.id_cuentahabiente = pa.cuentahabiente_id AND uc.anio = pa.anio
+                             LEFT JOIN pagos_cargos_agrupados pca ON uc.id_cuentahabiente = pca.cuentahabiente_id AND uc.anio = pca.anio_deuda
+                        ), historial_movimientos AS (
+                         SELECT pagos_pago.cuentahabiente_id,
+                            pagos_pago.fecha_pago,
+                            pagos_pago.monto_recibido,
+                            pagos_pago.anio,
+                            'Pago Normal'::text AS tipo_movimiento
+                           FROM pagos_pago
+                          WHERE pagos_pago.fecha_pago IS NOT NULL
+                        UNION ALL
+                         SELECT c_1.cuentahabiente_id,
+                            pc.fecha_pago,
+                            pc.monto_recibido,
+                            (EXTRACT(year FROM c_1.fecha_cargo) - 1::numeric)::integer AS anio,
+                            'Pago de Cargo'::text AS tipo_movimiento
+                           FROM cargos_cargo c_1
+                             JOIN pagos_cargos pc ON c_1.id_cargo = pc.cargo_id
+                          WHERE c_1.tipo_cargo_id = 1 AND pc.fecha_pago IS NOT NULL
+                        )
+                 SELECT c.id_cuentahabiente,
                     c.numero_contrato,
                     concat(c.nombres, ' ', c.ap, ' ', c.am) AS nombre,
                     concat(c.calle, ' ', c.numero) AS direccion,
                     c.telefono,
-                    c.saldo_pendiente,
-                    c.deuda,
-                    p.fecha_pago,
-                    p.monto_recibido,
-                    p.anio
-                    FROM cuentahabientes_cuentahabiente c
-                        JOIN pagos_pago p ON p.cuentahabiente_id = c.id_cuentahabiente
-                ORDER BY c.id_cuentahabiente, p.fecha_pago;
+                    sc.saldo_dinamico AS saldo_pendiente,
+                    hm.fecha_pago,
+                    hm.monto_recibido,
+                    sc.anio,
+                    hm.tipo_movimiento
+                   FROM saldos_calculados sc
+                     JOIN cuentahabientes_cuentahabiente c ON c.id_cuentahabiente = sc.id_cuentahabiente
+                     LEFT JOIN historial_movimientos hm ON hm.cuentahabiente_id = sc.id_cuentahabiente AND hm.anio = sc.anio
+                  ORDER BY c.numero_contrato, sc.anio, hm.fecha_pago;
             """,
             reverse_sql="DROP VIEW IF EXISTS estado_cuenta;"
         ),
