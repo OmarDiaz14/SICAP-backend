@@ -96,6 +96,7 @@ from rest_framework import serializers
 from .models_views import (VistaPagos,VistaHistorial,
                             VistaDeudores, VistaProgreso,
                             EstadoCuenta, RCuentahabientes, EstadoCuentaResumen
+                            , VistaCargos
 )
 class VistaPagosSerializer(serializers.ModelSerializer):
     class Meta:
@@ -167,3 +168,20 @@ class CierreAnioSerializer(serializers.Serializer):
 
 class EjecutarCierreSerializer(CierreAnioSerializer):
     confirmar = serializers.BooleanField()
+
+
+class VistaCargosSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model  = VistaCargos
+        fields = [
+            "id_vista",
+            "id_cargo",
+            "cuentahabiente_id",
+            "tipo_cargo_nombre",
+            "cargo_fecha",
+            "anio_cargo",
+            "saldo_restante_cargo",
+            "cargo_activo",
+            "desglose_pagos",
+        ]
