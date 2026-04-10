@@ -1,4 +1,19 @@
+from django.db.models import Field
 from django.db import models
+
+class PreParsedJSONField(Field):
+    """
+    PostgreSQL + psycopg2 ya deserializa columnas JSON/JSONB a tipos Python.
+    Este campo evita que Django intente hacer json.loads() sobre un valor
+    que ya es list/dict, lo que causaría el TypeError.
+    """
+
+    def from_db_value(self, value, expression, connection):
+        return value  # ya es list o dict, no hacer nada
+
+    def get_internal_type(self):
+        return "JSONField"
+
 
 class VistaPagos(models.Model):
     numero_contrato = models.IntegerField()
@@ -22,6 +37,7 @@ class VistaHistorial(models.Model):
     monto_recibido = models.DecimalField(max_digits=12, decimal_places=2)
     mes = models.CharField(max_length=20)
     anio = models.IntegerField()
+    cobrador = models.CharField(max_length=301, null=True, blank=True)
     nombre_descuento = models.CharField(max_length=150, null=True, blank=True)
     comentarios = models.TextField(null=True, blank=True)
 
@@ -101,3 +117,22 @@ class RCuentahabientes(models.Model):
     class Meta:
         managed = False
         db_table = "r_cuentahabientes"
+
+
+class VistaCargos(models.Model):
+    """Modelo de solo lectura mapeado a la vista vista_cargos."""
+
+    id_vista          = models.IntegerField(primary_key=True)
+    id_cargo          = models.IntegerField()
+    cuentahabiente_id = models.IntegerField()
+    tipo_cargo_nombre = models.CharField(max_length=255)
+    cargo_fecha       = models.DateField()
+    anio_cargo        = models.IntegerField()
+    saldo_restante_cargo = models.DecimalField(max_digits=12, decimal_places=2)
+    cargo_activo      = models.BooleanField()
+    desglose_pagos       = PreParsedJSONField() 
+
+    class Meta:
+        managed  = False          # Django no toca esta tabla/vista
+        db_table = "vista_cargos"
+        ordering = ["-cargo_fecha"]
