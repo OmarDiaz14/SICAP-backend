@@ -136,3 +136,25 @@ class VistaCargos(models.Model):
         managed  = False          # Django no toca esta tabla/vista
         db_table = "vista_cargos"
         ordering = ["-cargo_fecha"]
+
+
+class EstadoCuentaNew(models.Model):
+
+    id                          = models.BigIntegerField(primary_key=True)
+    id_cobrador                 = models.IntegerField(null=True)
+    nombre_cobrador             = models.CharField(max_length=255, null=True)
+    id_cuentahabiente           = models.IntegerField()
+    numero_contrato             = models.CharField(max_length=100)
+    nombre_cuentahabiente       = models.CharField(max_length=255, null=True)
+    calle                       = models.CharField(max_length=255, null=True)
+    servicio                    = models.CharField(max_length=255, null=True)
+    saldo_pendiente_actualizado = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    deuda_actualizada           = models.CharField(max_length=20, null=True)
+    anio                        = models.IntegerField()
+    tipo_movimiento             = models.CharField(max_length=50)
+    json_pagos                  = PreParsedJSONField()
+
+    class Meta:
+        managed  = False
+        db_table = "estado_cuenta_new"
+        ordering = ["numero_contrato", "anio"]
