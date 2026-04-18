@@ -8,7 +8,7 @@ from cobrador.permissions import IsDirectivoOrReadOnly
 class CargoViewSet(viewsets.ModelViewSet):
     #queryset = Cargo.objects.select_related("cuentahabiente").order_by("-fecha_cargo","-id_cargo")
     serializer_class = CargoSerializer
-    permission_classes = [IsAuthenticated & IsDirectivoOrReadOnly]
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = [
         "cuentahabiente__numero_contrato",
