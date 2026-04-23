@@ -96,7 +96,7 @@ from rest_framework import serializers
 from .models_views import (VistaPagos,VistaHistorial,
                             VistaDeudores, VistaProgreso,
                             EstadoCuenta, RCuentahabientes, EstadoCuentaResumen
-                            , VistaCargos, EstadoCuentaNew, ReporteCargos
+                            , VistaCargos, EstadoCuentaNew, ReporteCargos, ReportePadronGeneral
 )
 class VistaPagosSerializer(serializers.ModelSerializer):
     class Meta:
@@ -213,4 +213,24 @@ class ReporteCargosSerializer(serializers.ModelSerializer):
             "estatus_cargo",
             "fecha_pago",
             "monto_recibido",
+        ]
+
+class ReportePadronGeneralSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = ReportePadronGeneral
+        fields = [
+            "id",
+            "id_cuentahabiente",
+            "numero_contrato",
+            "nombre_usuario",
+            "tipo_servicio",
+            "saldo_pendiente",
+            "total_pagado_acumulado",
+            "detalle_cargos_json",
+            "anio_reporte",
+            "total_pagos_cobrados",
+            "total_cobros_cargos",
+            "total_pagos_pendientes",
+            "total_cargos_pendientes",
+            "total_usuarios",
         ]

@@ -179,3 +179,25 @@ class ReporteCargos(models.Model):
         managed  = False
         db_table = "reporte_cargos"
         ordering = ["numero_contrato", "fecha_cargo"]
+
+class ReportePadronGeneral(models.Model):
+
+    id                          = models.BigIntegerField(primary_key=True)
+    id_cuentahabiente           = models.IntegerField()
+    numero_contrato             = models.CharField(max_length=100)
+    nombre_usuario              = models.CharField(max_length=255, null=True)
+    tipo_servicio               = models.CharField(max_length=255, null=True)
+    saldo_pendiente             = models.DecimalField(max_digits=14, decimal_places=2, null=True)
+    total_pagado_acumulado      = models.DecimalField(max_digits=14, decimal_places=2, null=True)
+    detalle_cargos_json         = PreParsedJSONField(null=True)
+    anio_reporte                = models.IntegerField()
+    total_pagos_cobrados        = models.DecimalField(max_digits=14, decimal_places=2, null=True)
+    total_cobros_cargos         = models.DecimalField(max_digits=14, decimal_places=2, null=True)
+    total_pagos_pendientes      = models.DecimalField(max_digits=14, decimal_places=2, null=True)
+    total_cargos_pendientes     = models.DecimalField(max_digits=14, decimal_places=2, null=True)
+    total_usuarios              = models.BigIntegerField(null=True)
+
+    class Meta:
+        managed  = False
+        db_table = "reporte_padron_general"
+        ordering = ["numero_contrato", "anio_reporte"]

@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (EstadoCuentaResumenViewSet, CierreAnualViewSet, 
                     CuentahabienteViewSet, RCuentahabientesViewSet, VistaHistorialViewSet,
                     VistaPagosViewSet, VistaDeudoresViewSet, VistaProgresoPublicViewSet, EstadoCuentaViewSet
-                    , VistaCargosViewSet, EstadoCuentaNewViewSet, ReporteCargosViewSet)
+                    , VistaCargosViewSet, EstadoCuentaNewViewSet, ReporteCargosViewSet, ReportePadronGeneralViewSet)
 
 
 router = DefaultRouter()
@@ -20,6 +20,7 @@ router.register(r'estado-cuenta-resumen', EstadoCuentaResumenViewSet, basename='
 router.register(r"vista-cargos", VistaCargosViewSet, basename="vista-cargos")
 router.register(r"estado-cuenta-new", EstadoCuentaNewViewSet, basename="estado-cuenta-new")
 router.register(r"reporte-cargos", ReporteCargosViewSet, basename="reporte-cargos")
+router.register(r"reporte-padron-general", ReportePadronGeneralViewSet, basename="reporte-padron-general")
 
 urlpatterns = [ 
     path('', include(router.urls)) ,

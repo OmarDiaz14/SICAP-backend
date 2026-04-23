@@ -16,11 +16,12 @@ from .serializers import (
     CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, 
     VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer,
     VistaProgresoSerializer, EstadoCuentaSerializer, EstadoCuentaResumenSerializer, VistaCargosSerializer, 
-    EstadoCuentaNewSerializer, ReporteCargosSerializer)
+    EstadoCuentaNewSerializer, ReporteCargosSerializer, ReportePadronGeneralSerializer)
 
 from cobrador.permissions import IsDirectivoOrCobradorCreate
 from .models_views import (RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, 
-                           EstadoCuenta, EstadoCuentaResumen, VistaCargos, EstadoCuentaNew, ReporteCargos)
+                           EstadoCuenta, EstadoCuentaResumen, VistaCargos, EstadoCuentaNew, ReporteCargos,
+                           ReportePadronGeneral)
 
 
 class CuentahabienteViewSet(viewsets.ModelViewSet):
@@ -143,8 +144,6 @@ class RCuentahabientesViewSet(viewsets.ReadOnlyModelViewSet):
     """/api/r-cuentahabientes/
     /api/r-cuentahabientes/?id_cuentahabiente=123
     """
-     
-
     queryset = RCuentahabientes.objects.all().order_by("id_cuentahabiente")
     serializer_class = RCuentahabientesSerializer
     permission_classes = [IsAuthenticated]
@@ -415,3 +414,29 @@ class ReporteCargosViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return ReporteCargos.objects.all()
+    
+class ReportePadronGeneralViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Filtros disponibles:
+      ?anio_reporte=2024
+      ?id_cuentahabiente=5
+      ?tipo_servicio=Agua Potable
+    """
+    serializer_class   = ReportePadronGeneralSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields   = [
+        "anio_reporte",
+        "id_cuentahabiente",
+        "tipo_servicio",
+    ]
+    ordering_fields    = [
+        "anio_reporte",
+        "numero_contrato",
+        "saldo_pendiente",
+        "total_pagado_acumulado",
+    ]
+
+    def get_queryset(self):
+        return ReportePadronGeneral.objects.all()
+    
