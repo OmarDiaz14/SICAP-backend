@@ -1,5 +1,6 @@
 # cuentahabientes/views.py
 from datetime import date
+import django_filters
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
@@ -393,6 +394,25 @@ class EstadoCuentaNewViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         return EstadoCuentaNew.objects.all()
     
+
+class ReporteCargosFilter(django_filters.FilterSet):
+    anio = django_filters.NumberFilter(
+        field_name="fecha_cargo",
+        lookup_expr="year",
+        label="Año del cargo"
+    )
+
+    class Meta:
+        model   = ReporteCargos
+        fields  = [
+            "id_cobrador",
+            "id_cuentahabiente",
+            "estatus_cargo",
+            "tipo_cargo",
+            "anio",           # ← nuevo
+        ]
+
+
 class ReporteCargosViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Filtros disponibles:
@@ -400,21 +420,16 @@ class ReporteCargosViewSet(viewsets.ReadOnlyModelViewSet):
       ?id_cuentahabiente=5
       ?estatus_cargo=Pendiente
       ?tipo_cargo=Multa
+      ?anio=2024          ← nuevo
     """
     serializer_class   = ReporteCargosSerializer
     permission_classes = [IsAuthenticated]
     filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields   = [
-        "id_cobrador",
-        "id_cuentahabiente",
-        "estatus_cargo",
-        "tipo_cargo",
-    ]
+    filterset_class    = ReporteCargosFilter   # ← reemplaza filterset_fields
     ordering_fields    = ["fecha_cargo", "fecha_pago", "saldo_restante_cargo"]
 
     def get_queryset(self):
         return ReporteCargos.objects.all()
-    
 class ReportePadronGeneralViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Filtros disponibles:
