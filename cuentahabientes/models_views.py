@@ -158,3 +158,24 @@ class EstadoCuentaNew(models.Model):
         managed  = False
         db_table = "estado_cuenta_new"
         ordering = ["numero_contrato", "anio"]
+
+class ReporteCargos(models.Model):
+
+    id                      = models.BigIntegerField(primary_key=True)
+    id_cobrador             = models.IntegerField(null=True)
+    nombre_cobrador         = models.CharField(max_length=255, null=True)
+    id_cuentahabiente       = models.IntegerField()
+    numero_contrato         = models.CharField(max_length=100)
+    nombre_cuentahabiente   = models.CharField(max_length=255, null=True)
+    calle                   = models.CharField(max_length=255, null=True)
+    tipo_cargo              = models.CharField(max_length=255)
+    fecha_cargo             = models.DateField(null=True)
+    saldo_restante_cargo    = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    estatus_cargo           = models.CharField(max_length=20)
+    fecha_pago              = models.DateField(null=True)
+    monto_recibido          = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        managed  = False
+        db_table = "reporte_cargos"
+        ordering = ["numero_contrato", "fecha_cargo"]
