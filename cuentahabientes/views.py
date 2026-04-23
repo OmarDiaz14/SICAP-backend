@@ -15,10 +15,12 @@ from .models import CierreAnual, Cuentahabiente
 from .serializers import (
     CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, 
     VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer,
-      VistaProgresoSerializer, EstadoCuentaSerializer, EstadoCuentaResumenSerializer, VistaCargosSerializer, EstadoCuentaNewSerializer)
+    VistaProgresoSerializer, EstadoCuentaSerializer, EstadoCuentaResumenSerializer, VistaCargosSerializer, 
+    EstadoCuentaNewSerializer, ReporteCargosSerializer)
 
 from cobrador.permissions import IsDirectivoOrCobradorCreate
-from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta, EstadoCuentaResumen, VistaCargos, EstadoCuentaNew
+from .models_views import (RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, 
+                           EstadoCuenta, EstadoCuentaResumen, VistaCargos, EstadoCuentaNew, ReporteCargos)
 
 
 class CuentahabienteViewSet(viewsets.ModelViewSet):
@@ -391,3 +393,25 @@ class EstadoCuentaNewViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return EstadoCuentaNew.objects.all()
+    
+class ReporteCargosViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Filtros disponibles:
+      ?id_cobrador=1
+      ?id_cuentahabiente=5
+      ?estatus_cargo=Pendiente
+      ?tipo_cargo=Multa
+    """
+    serializer_class   = ReporteCargosSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields   = [
+        "id_cobrador",
+        "id_cuentahabiente",
+        "estatus_cargo",
+        "tipo_cargo",
+    ]
+    ordering_fields    = ["fecha_cargo", "fecha_pago", "saldo_restante_cargo"]
+
+    def get_queryset(self):
+        return ReporteCargos.objects.all()
