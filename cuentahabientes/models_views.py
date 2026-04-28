@@ -187,14 +187,20 @@ class ReportePadronGeneral(models.Model):
     numero_contrato             = models.CharField(max_length=100)
     nombre_usuario              = models.CharField(max_length=255, null=True)
     tipo_servicio               = models.CharField(max_length=255, null=True)
-    saldo_pendiente             = models.DecimalField(max_digits=14, decimal_places=2, null=True)
-    total_pagado_acumulado      = models.DecimalField(max_digits=14, decimal_places=2, null=True)
-    detalle_cargos_json         = PreParsedJSONField(null=True)
+    costo_servicio_anual        = models.DecimalField(max_digits=14, decimal_places=2, null=True)  # ← nuevo
+    cantidad_abonos_servicio    = models.BigIntegerField(null=True)                                # ← nuevo
+    total_pagado_servicio       = models.DecimalField(max_digits=14, decimal_places=2, null=True)  # ← nuevo
+    detalle_cargos_activos_json = PreParsedJSONField(null=True)   # ← renombrado
+    detalle_abonos_cargos_json  = PreParsedJSONField(null=True)   # ← nuevo
+    cantidad_pagos_cargos       = models.BigIntegerField(null=True)                                # ← nuevo
+    total_pagado_cargos         = models.DecimalField(max_digits=14, decimal_places=2, null=True)  # ← nuevo
+    total_pagado_general        = models.DecimalField(max_digits=14, decimal_places=2, null=True)  # ← nuevo (antes total_pagado_acumulado)
     anio_reporte                = models.IntegerField()
     total_pagos_cobrados        = models.DecimalField(max_digits=14, decimal_places=2, null=True)
     total_cobros_cargos         = models.DecimalField(max_digits=14, decimal_places=2, null=True)
     total_pagos_pendientes      = models.DecimalField(max_digits=14, decimal_places=2, null=True)
     total_cargos_pendientes     = models.DecimalField(max_digits=14, decimal_places=2, null=True)
+    total_recaudado_global      = models.DecimalField(max_digits=14, decimal_places=2, null=True)  # ← nuevo
     total_usuarios              = models.BigIntegerField(null=True)
 
     class Meta:

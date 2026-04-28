@@ -440,17 +440,8 @@ class ReportePadronGeneralViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class   = ReportePadronGeneralSerializer
     permission_classes = [IsAuthenticated]
     filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields   = [
-        "anio_reporte",
-        "id_cuentahabiente",
-        "tipo_servicio",
-    ]
-    ordering_fields    = [
-        "anio_reporte",
-        "numero_contrato",
-        "saldo_pendiente",
-        "total_pagado_acumulado",
-    ]
+    filterset_fields   = ["anio_reporte", "id_cuentahabiente", "tipo_servicio"]
+    ordering_fields    = ["anio_reporte", "numero_contrato", "total_pagado_general"]
 
     def get_queryset(self):
         return ReportePadronGeneral.objects.all()
