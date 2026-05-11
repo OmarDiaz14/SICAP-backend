@@ -1,5 +1,15 @@
+import os
 from django.db import models
 from django.forms import ValidationError
+
+def upload_comprobante_egreso(instance, filename):
+        return os.path.join(
+            "comprobantes_egresos",
+            str(instance.fecha.year),
+            str(instance.fecha.month),
+            filename,
+        )
+
 
 class Cuenta(models.Model):
     nombre = models.CharField(max_length=100)
@@ -22,7 +32,7 @@ class Transaccion(models.Model):
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     fecha = models.DateTimeField()
     observaciones = models.TextField(blank=True)
-    comprobante = models.URLField(max_length=200)
+    comprobante = models.FileField(upload_to=upload_comprobante_egreso, null=True, blank=True)
     requisitor = models.CharField(max_length=150, null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
