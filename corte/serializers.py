@@ -4,7 +4,7 @@ class CorteSerializer(serializers.Serializer):
     #el frontend manda el string  "YYYY-MM-DD" y el backend lo convierte a datetime
     fecha_inicio = serializers.DateField(format="%Y-%m-%d", input_formats=["%Y-%m-%d"])
     fecha_fin = serializers.DateField(format="%Y-%m-%d", input_formats=["%Y-%m-%d"])
-    cobrador_id = serializers.IntegerField()
+    cobrador_id = serializers.IntegerField(required=False, allow_null = True, default= None)  # Solo para CorteCajaJr
 
 # ─── CorteCajaJr ──────────────────────────────────────────────────────────────
 class CorteCajaJrSerializer(serializers.ModelSerializer):

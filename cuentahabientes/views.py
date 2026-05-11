@@ -1,5 +1,6 @@
 # cuentahabientes/views.py
 from datetime import date
+import django_filters
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
@@ -12,9 +13,16 @@ from rest_framework.decorators import action
 from cargos.models import Cargo, TipoCargo
 from pagos.models import Pago
 from .models import CierreAnual, Cuentahabiente
-from .serializers import CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer, VistaProgresoSerializer, EstadoCuentaSerializer
+from .serializers import (
+    CierreAnioSerializer, CuentahabienteSerializer, EjecutarCierreSerializer, RCuentahabientesSerializer, 
+    VistaPagosSerializer, VistaHistorialSerializer,VistaDeudoresSerializer,
+    VistaProgresoSerializer, EstadoCuentaSerializer, EstadoCuentaResumenSerializer, VistaCargosSerializer, 
+    EstadoCuentaNewSerializer, ReporteCargosSerializer, ReportePadronGeneralSerializer)
+
 from cobrador.permissions import IsDirectivoOrCobradorCreate
-from .models_views import RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, EstadoCuenta
+from .models_views import (RCuentahabientes, VistaHistorial,VistaPagos, VistaDeudores, VistaProgreso, 
+                           EstadoCuenta, EstadoCuentaResumen, VistaCargos, EstadoCuentaNew, ReporteCargos,
+                           ReportePadronGeneral)
 
 
 class CuentahabienteViewSet(viewsets.ModelViewSet):
@@ -41,7 +49,7 @@ class VistaHistorialViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = VistaHistorialSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["anio", "mes", "numero_contrato", "fecha_pago"]
-    search_fields = ["numero_contrato"]
+    search_fields = ["numero_contrato", "cobrador"]
     ordering_fields = ["fecha_pago", "anio", "numero_contrato"]
 
 class VistaDeudoresViewSet(viewsets.ReadOnlyModelViewSet):
@@ -88,18 +96,55 @@ class EstadoCuentaViewSet(viewsets.ReadOnlyModelViewSet):
         serializer_class = EstadoCuentaSerializer
         permission_classes = [IsAuthenticated&IsDirectivoOrCobradorCreate]
         filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-        filterset_fields = ["id_cuentahabiente", "anio", "deuda"]
+        filterset_fields = ["id_cuentahabiente", "anio", "tipo_movimiento"]
         search_fields = ["nombre", "direccion", "telefono", "numero_contrato"]
         ordering_fields = ["id_cuentahabiente", "numero_contrato", "fecha_pago", "anio"]
-        ordering = ["numero_contrato", "fecha_pago"]
+        ordering = ["numero_contrato","anio",  "fecha_pago"]
+
+class VistaCargosViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Endpoint de solo lectura para vista_cargos.
+
+    Filtros disponibles:
+      ?cuentahabiente_id=1
+      ?cargo_activo=true
+      ?anio_cargo=2024
+    """
+
+    serializer_class   = VistaCargosSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields   = ["cuentahabiente_id", "cargo_activo", "anio_cargo"]
+    ordering_fields    = ["cargo_fecha", "saldo_restante_cargo"]
+
+    def get_queryset(self):
+        return VistaCargos.objects.all()
+
+class EstadoCuentaResumenViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    /api/estado-cuenta-resumen/?id_cuentahabiente=1
+    /api/estado-cuenta-resumen/?numero_contrato=123
+    """
+    serializer_class = EstadoCuentaResumenSerializer
+    permission_classes = [IsAuthenticated & IsDirectivoOrCobradorCreate ]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["id_cuentahabiente", "numero_contrato"]
+
+    def get_queryset(self):
+        id_cuentahabiente = self.request.query_params.get("id_cuentahabiente")
+        numero_contrato   = self.request.query_params.get("numero_contrato")
+
+        if not id_cuentahabiente and not numero_contrato:
+            return EstadoCuentaResumen.objects.none()  # evita traer toda la tabla
+
+        return EstadoCuentaResumen.objects.all()
+
 
 
 class RCuentahabientesViewSet(viewsets.ReadOnlyModelViewSet):  
     """/api/r-cuentahabientes/
     /api/r-cuentahabientes/?id_cuentahabiente=123
     """
-     
-
     queryset = RCuentahabientes.objects.all().order_by("id_cuentahabiente")
     serializer_class = RCuentahabientesSerializer
     permission_classes = [IsAuthenticated]
@@ -337,3 +382,67 @@ def cambio_anio(anio_nuevo):
             resumen["cuentas_con_pagos_anticipados"] += 1
 
     return resumen
+
+class EstadoCuentaNewViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class   = EstadoCuentaNewSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields   = ["id_cuentahabiente", "anio", "deuda_actualizada",
+                          "tipo_movimiento", "id_cobrador"]
+    ordering_fields    = ["anio", "numero_contrato", "saldo_pendiente_actualizado"]
+
+    def get_queryset(self):
+        return EstadoCuentaNew.objects.all()
+    
+
+class ReporteCargosFilter(django_filters.FilterSet):
+    anio = django_filters.NumberFilter(
+        field_name="fecha_cargo",
+        lookup_expr="year",
+        label="Año del cargo"
+    )
+
+    class Meta:
+        model   = ReporteCargos
+        fields  = [
+            "id_cobrador",
+            "id_cuentahabiente",
+            "estatus_cargo",
+            "tipo_cargo",
+            "anio",           # ← nuevo
+        ]
+
+
+class ReporteCargosViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Filtros disponibles:
+      ?id_cobrador=1
+      ?id_cuentahabiente=5
+      ?estatus_cargo=Pendiente
+      ?tipo_cargo=Multa
+      ?anio=2024          ← nuevo
+    """
+    serializer_class   = ReporteCargosSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_class    = ReporteCargosFilter   # ← reemplaza filterset_fields
+    ordering_fields    = ["fecha_cargo", "fecha_pago", "saldo_restante_cargo"]
+
+    def get_queryset(self):
+        return ReporteCargos.objects.all()
+class ReportePadronGeneralViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Filtros disponibles:
+      ?anio_reporte=2024
+      ?id_cuentahabiente=5
+      ?tipo_servicio=Agua Potable
+    """
+    serializer_class   = ReportePadronGeneralSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields   = ["anio_reporte", "id_cuentahabiente", "tipo_servicio"]
+    ordering_fields    = ["anio_reporte", "numero_contrato", "total_pagado_general"]
+
+    def get_queryset(self):
+        return ReportePadronGeneral.objects.all()
+    

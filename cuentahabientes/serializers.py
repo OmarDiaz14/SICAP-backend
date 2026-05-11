@@ -95,7 +95,8 @@ class CuentahabienteSerializer(serializers.ModelSerializer):
 from rest_framework import serializers
 from .models_views import (VistaPagos,VistaHistorial,
                             VistaDeudores, VistaProgreso,
-                            EstadoCuenta, RCuentahabientes
+                            EstadoCuenta, RCuentahabientes, EstadoCuentaResumen
+                            , VistaCargos, EstadoCuentaNew, ReporteCargos, ReportePadronGeneral
 )
 class VistaPagosSerializer(serializers.ModelSerializer):
     class Meta:
@@ -137,10 +138,22 @@ class EstadoCuentaSerializer(serializers.ModelSerializer):
             "direccion",
             "telefono",
             "saldo_pendiente",
-            "deuda",
             "fecha_pago",
             "monto_recibido",
             "anio",
+            "tipo_movimiento",
+        ]
+
+class EstadoCuentaResumenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EstadoCuentaResumen
+        fields = [
+            "id_cuentahabiente",
+            "numero_contrato",
+            "anio",
+            "nombre_servicio",
+            "estatus",
+            "saldo_pendiente",
         ]
 
 class RCuentahabientesSerializer(serializers.ModelSerializer):
@@ -155,3 +168,75 @@ class CierreAnioSerializer(serializers.Serializer):
 
 class EjecutarCierreSerializer(CierreAnioSerializer):
     confirmar = serializers.BooleanField()
+
+
+class VistaCargosSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model  = VistaCargos
+        fields = [
+            "id_vista",
+            "id_cargo",
+            "cuentahabiente_id",
+            "tipo_cargo_nombre",
+            "cargo_fecha",
+            "anio_cargo",
+            "saldo_restante_cargo",
+            "cargo_activo",
+            "desglose_pagos",
+        ]
+
+class EstadoCuentaNewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = EstadoCuentaNew
+        fields = [
+            "id", "id_cobrador", "nombre_cobrador",
+            "id_cuentahabiente", "numero_contrato", "nombre_cuentahabiente",
+            "calle", "servicio", "saldo_pendiente_actualizado",
+            "deuda_actualizada", "anio", "tipo_movimiento", "json_pagos",
+        ]
+
+class ReporteCargosSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = ReporteCargos
+        fields = [
+            "id",
+            "id_cobrador",
+            "nombre_cobrador",
+            "id_cuentahabiente",
+            "numero_contrato",
+            "nombre_cuentahabiente",
+            "calle",
+            "tipo_cargo",
+            "fecha_cargo",
+            "saldo_restante_cargo",
+            "estatus_cargo",
+            "fecha_pago",
+            "monto_recibido",
+        ]
+
+class ReportePadronGeneralSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = ReportePadronGeneral
+        fields = [
+            "id",
+            "id_cuentahabiente",
+            "numero_contrato",
+            "nombre_usuario",
+            "tipo_servicio",
+            "costo_servicio_anual",
+            "cantidad_abonos_servicio",
+            "total_pagado_servicio",
+            "detalle_cargos_activos_json",
+            "detalle_abonos_cargos_json",
+            "cantidad_pagos_cargos",
+            "total_pagado_cargos",
+            "total_pagado_general",
+            "anio_reporte",
+            "total_pagos_cobrados",
+            "total_cobros_cargos",
+            "total_pagos_pendientes",
+            "total_cargos_pendientes",
+            "total_recaudado_global",
+            "total_usuarios",
+        ]
