@@ -563,16 +563,12 @@ class CorteCajaSrDetalleView(APIView):
 
 #### cosultar pdf 
 def generar_url_firmada(ruta_pdf: str, expiracion: int = 3600) -> str:
-    """
-    Genera una URL temporal para ver el PDF.
-    expiracion: segundos que dura la URL (default 1 hora)
-    """
     s3_client = boto3.client(
         "s3",
-        endpoint_url       = "https://nyc3.digitaloceanspaces.com",
-        aws_access_key_id  = settings.AWS_ACCESS_KEY_ID,
+        endpoint_url          = settings.AWS_S3_ENDPOINT_URL,  # ← sfo3 desde settings
+        aws_access_key_id     = settings.AWS_ACCESS_KEY_ID,
         aws_secret_access_key = settings.AWS_SECRET_ACCESS_KEY,
-        config             = Config(signature_version="s3v4"),
+        config                = Config(signature_version="s3v4"),
     )
 
     url = s3_client.generate_presigned_url(

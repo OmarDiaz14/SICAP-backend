@@ -225,5 +225,12 @@ AWS_S3_ENDPOINT_URL     = "https://sfo3.digitaloceanspaces.com"
 AWS_S3_FILE_OVERWRITE   = False
 AWS_DEFAULT_ACL         = "private"
 
-DEFAULT_FILE_STORAGE     = "storages.backends.s3boto3.S3Boto3Storage"
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 MEDIA_URL                = "https://sicap-pdfs.sfo3.digitaloceanspaces.com/"
