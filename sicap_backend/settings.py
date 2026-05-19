@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "storages",
+    "django_crontab",
     # apps
     "calles",
     "cargos",
@@ -234,3 +235,8 @@ STORAGES = {
     },
 }
 MEDIA_URL                = "https://sicap-pdfs.sfo3.digitaloceanspaces.com/"
+
+CRONJOBS = [
+    # Día 1 de cada mes a las 6:00 AM
+    ("0 6 1 * *", "django.core.management.call_command", ["cobro_mensual"]),
+]

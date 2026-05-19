@@ -1,190 +1,193 @@
-# cuentahabientes/serializers.py
-from django.utils import timezone
-from django.db.models import Max
+from datetime import datetime
 from decimal import Decimal
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from cargos.models import Cargo, TipoCargo
 from .models import Cuentahabiente
+from .models_views import (
+    VistaPagos, VistaHistorial, VistaDeudores, VistaProgreso,
+    EstadoCuenta, RCuentahabientes, EstadoCuentaResumen,
+    VistaCargos, EstadoCuentaNew, ReporteCargos, ReportePadronGeneral,
+)
+
 
 class CuentahabienteSerializer(serializers.ModelSerializer):
-    
-    numero_contrato = serializers.IntegerField(required=False)
-    es_toma_nueva = serializers.BooleanField(write_only=True, required=False, default=False)
-    class Meta:
 
-        model = Cuentahabiente
+    numero_contrato = serializers.IntegerField(required=False)
+    es_toma_nueva   = serializers.BooleanField(
+        write_only=True, required=False, default=False
+    )
+
+    class Meta:
+        model  = Cuentahabiente
         fields = (
-            "id_cuentahabiente", "numero_contrato", "nombres", "ap", "am",
-            "calle", "calle_fk", "numero", "telefono",
+            # ── identificación ──────────────────────────────────────
+            "id_cuentahabiente",
+            "numero_contrato",
+            # ── datos personales ────────────────────────────────────
+            "nombres", "ap", "am", "telefono",
+            # ── dirección ───────────────────────────────────────────
+            "calle_fk",
+            "numero",
+            "numero_interior",
             "colonia",
-            "servicio",           # <- el cliente elige el servicio (ID)
+            # ── servicio / deuda ────────────────────────────────────
+            "servicio",
             "deuda",
-            "saldo_pendiente",    # <- lo calculamos; solo lectura al crear
+            "saldo_pendiente",
+            # ── tipo y fechas ───────────────────────────────────────
+            "tipo_cuenta",
+            "fecha_registro",        # la captura el usuario al crear
+            "fecha_activacion",      # se asigna solo desde /activar/
+            "fecha_desactivacion",   # se asigna solo desde /desactivar/
+            # ── write-only ──────────────────────────────────────────
             "es_toma_nueva",
         )
-        read_only_fields = ("id_cuentahabiente", "saldo_pendiente")
+        read_only_fields = (
+            "id_cuentahabiente",
+            "saldo_pendiente",
+            "fecha_activacion",
+            "fecha_desactivacion",
+        )
+
+    # ── Validaciones ──────────────────────────────────────────────────
 
     def validate_numero_contrato(self, value):
-
         if value is None:
             return value
-
-        # Evitar que el numero de contrato sea negativo
         if value <= 0:
             raise serializers.ValidationError(
-                "El número de contrato no puede ser negativo"
+                "El número de contrato no puede ser negativo."
             )
-        
         qs = Cuentahabiente.objects.filter(numero_contrato=value)
-
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
-
         if qs.exists():
             raise serializers.ValidationError(
                 "Ya existe un cuentahabiente con ese número de contrato."
             )
-
         return value
-    
-    def create(self, validated_data):
-        """
-        Al crear, establece saldo_pendiente = costo del servicio seleccionado.
-        El cliente NO necesita mandar saldo_pendiente.
-        """
 
+    def validate_fecha_registro(self, value):
+        if value is None:
+            raise serializers.ValidationError(
+                "La fecha de registro es obligatoria."
+            )
+        return value
+
+    # ── Creación ──────────────────────────────────────────────────────
+
+    def create(self, validated_data):
         es_toma_nueva = validated_data.pop("es_toma_nueva", False)
 
-        # Generar numero de contrato a partir del 2000
-        ultimo_existente = set(
+        # ── Auto-generar número de contrato desde 2000 ────────────────
+        existentes   = set(
             Cuentahabiente.objects
             .filter(numero_contrato__gte=2000)
             .values_list("numero_contrato", flat=True)
         )
-
         nuevo_numero = 2000
-        while nuevo_numero in ultimo_existente:
+        while nuevo_numero in existentes:
             nuevo_numero += 1
-
         validated_data["numero_contrato"] = nuevo_numero
 
-        srv = validated_data["servicio"]
-        validated_data["saldo_pendiente"] = srv.costo
+        # ── Saldo inicial = 0 ─────────────────────────────────────────
+        # El cobro se aplica cuando se activa la cuenta, no al registrar
+        validated_data["saldo_pendiente"] = Decimal("0")
+        validated_data["deuda"]           = "corriente"
 
         cuentahabiente = super().create(validated_data)
 
+        # ── Cargo por toma nueva (opcional) ───────────────────────────
         if es_toma_nueva:
-
-            tipo, created = TipoCargo.objects.get_or_create(
+            tipo, _ = TipoCargo.objects.get_or_create(
                 nombre="Toma nueva",
-                defaults={"monto": Decimal("1500.00"), "automatico":True}
+                defaults={"monto": Decimal("1500.00"), "automatico": True},
             )
-            
             Cargo.objects.create(
                 cuentahabiente=cuentahabiente,
                 tipo_cargo=tipo,
                 fecha_cargo=timezone.now().date(),
-                activo=True
+                activo=True,
             )
 
         return cuentahabiente
 
-# cuentahabientes/serializers.py
-from rest_framework import serializers
-from .models_views import (VistaPagos,VistaHistorial,
-                            VistaDeudores, VistaProgreso,
-                            EstadoCuenta, RCuentahabientes, EstadoCuentaResumen
-                            , VistaCargos, EstadoCuentaNew, ReporteCargos, ReportePadronGeneral
-)
+
+# ── Serializers de vistas (solo lectura) ──────────────────────────────
+
 class VistaPagosSerializer(serializers.ModelSerializer):
     class Meta:
-        model = VistaPagos
+        model  = VistaPagos
         fields = "__all__"
+
 
 class VistaHistorialSerializer(serializers.ModelSerializer):
     class Meta:
-        model = VistaHistorial
+        model  = VistaHistorial
         fields = "__all__"
+
 
 class VistaDeudoresSerializer(serializers.ModelSerializer):
     class Meta:
-        model = VistaDeudores
+        model  = VistaDeudores
         fields = "__all__"
 
 
 class VistaProgresoSerializer(serializers.ModelSerializer):
     class Meta:
-        model = VistaProgreso
-        # puedes quitar id_cuentahabiente si no quieres exponerlo
+        model  = VistaProgreso
         fields = [
-            "numero_contrato",
-            "nombre",
-            "estatus",
-            "anio_pago",
-            "total",
-            "saldo",
-            "progreso",
+            "numero_contrato", "nombre", "estatus",
+            "anio_pago", "total", "saldo", "progreso",
         ]
-    
+
+
 class EstadoCuentaSerializer(serializers.ModelSerializer):
     class Meta:
-        model = EstadoCuenta
+        model  = EstadoCuenta
         fields = [
-            "id_cuentahabiente",
-            "numero_contrato",
-            "nombre",
-            "direccion",
-            "telefono",
-            "saldo_pendiente",
-            "fecha_pago",
-            "monto_recibido",
-            "anio",
-            "tipo_movimiento",
+            "id_cuentahabiente", "numero_contrato", "nombre",
+            "direccion", "telefono", "saldo_pendiente",
+            "fecha_pago", "monto_recibido", "anio", "tipo_movimiento",
         ]
+
 
 class EstadoCuentaResumenSerializer(serializers.ModelSerializer):
     class Meta:
-        model = EstadoCuentaResumen
+        model  = EstadoCuentaResumen
         fields = [
-            "id_cuentahabiente",
-            "numero_contrato",
-            "anio",
-            "nombre_servicio",
-            "estatus",
-            "saldo_pendiente",
+            "id_cuentahabiente", "numero_contrato", "anio",
+            "nombre_servicio", "estatus", "saldo_pendiente",
         ]
+
 
 class RCuentahabientesSerializer(serializers.ModelSerializer):
     class Meta:
-        model = RCuentahabientes
-        fields = '__all__'
+        model  = RCuentahabientes
+        fields = "__all__"
 
 
 class CierreAnioSerializer(serializers.Serializer):
     anio_cierre = serializers.IntegerField()
-    anio_nuevo = serializers.IntegerField()
+    anio_nuevo  = serializers.IntegerField()
+
 
 class EjecutarCierreSerializer(CierreAnioSerializer):
     confirmar = serializers.BooleanField()
 
 
 class VistaCargosSerializer(serializers.ModelSerializer):
-
     class Meta:
         model  = VistaCargos
         fields = [
-            "id_vista",
-            "id_cargo",
-            "cuentahabiente_id",
-            "tipo_cargo_nombre",
-            "cargo_fecha",
-            "anio_cargo",
-            "saldo_restante_cargo",
-            "cargo_activo",
-            "desglose_pagos",
+            "id_vista", "id_cargo", "cuentahabiente_id",
+            "tipo_cargo_nombre", "cargo_fecha", "anio_cargo",
+            "saldo_restante_cargo", "cargo_activo", "desglose_pagos",
         ]
+
 
 class EstadoCuentaNewSerializer(serializers.ModelSerializer):
     class Meta:
@@ -196,47 +199,28 @@ class EstadoCuentaNewSerializer(serializers.ModelSerializer):
             "deuda_actualizada", "anio", "tipo_movimiento", "json_pagos",
         ]
 
+
 class ReporteCargosSerializer(serializers.ModelSerializer):
     class Meta:
         model  = ReporteCargos
         fields = [
-            "id",
-            "id_cobrador",
-            "nombre_cobrador",
-            "id_cuentahabiente",
-            "numero_contrato",
-            "nombre_cuentahabiente",
-            "calle",
-            "tipo_cargo",
-            "fecha_cargo",
-            "saldo_restante_cargo",
-            "estatus_cargo",
-            "fecha_pago",
-            "monto_recibido",
+            "id", "id_cobrador", "nombre_cobrador",
+            "id_cuentahabiente", "numero_contrato", "nombre_cuentahabiente",
+            "calle", "tipo_cargo", "fecha_cargo", "saldo_restante_cargo",
+            "estatus_cargo", "fecha_pago", "monto_recibido",
         ]
+
 
 class ReportePadronGeneralSerializer(serializers.ModelSerializer):
     class Meta:
         model  = ReportePadronGeneral
         fields = [
-            "id",
-            "id_cuentahabiente",
-            "numero_contrato",
-            "nombre_usuario",
-            "tipo_servicio",
-            "costo_servicio_anual",
-            "cantidad_abonos_servicio",
-            "total_pagado_servicio",
-            "detalle_cargos_activos_json",
-            "detalle_abonos_cargos_json",
-            "cantidad_pagos_cargos",
-            "total_pagado_cargos",
-            "total_pagado_general",
-            "anio_reporte",
-            "total_pagos_cobrados",
-            "total_cobros_cargos",
-            "total_pagos_pendientes",
-            "total_cargos_pendientes",
-            "total_recaudado_global",
-            "total_usuarios",
+            "id", "id_cuentahabiente", "numero_contrato", "nombre_usuario",
+            "tipo_servicio", "costo_servicio_anual", "cantidad_abonos_servicio",
+            "total_pagado_servicio", "detalle_cargos_activos_json",
+            "detalle_abonos_cargos_json", "cantidad_pagos_cargos",
+            "total_pagado_cargos", "total_pagado_general", "anio_reporte",
+            "total_pagos_cobrados", "total_cobros_cargos",
+            "total_pagos_pendientes", "total_cargos_pendientes",
+            "total_recaudado_global", "total_usuarios",
         ]
